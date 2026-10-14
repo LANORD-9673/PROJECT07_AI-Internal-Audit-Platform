@@ -5,6 +5,8 @@ import re
 import urllib.error
 import urllib.request
 import urllib.parse
+import random
+import time
 
 
 class GeminiError(Exception):
@@ -97,6 +99,30 @@ def check_access():
             'note': 'Google đã cho phép đọc danh sách model. Chưa kiểm chứng generateContent, quota tạo nội dung hoặc chất lượng đầu ra.'}
 
 
+def read_generation_response(req, timeout):
+    """Retry explicit temporary 5xx responses only; never retry permission/quota/schema errors."""
+    try:
+        retries = int(os.environ.get('PROJECT07_GEMINI_MAX_RETRIES', '2'))
+        if not 0 <= retries <= 3: raise ValueError()
+    except ValueError:
+        raise GeminiError('MODEL_CONFIGURATION_ERROR', 'PROJECT07_GEMINI_MAX_RETRIES must be 0–3.', 422)
+    for attempt in range(retries + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as response:
+                return json.loads(response.read().decode())
+        except urllib.error.HTTPError as exc:
+            if exc.code in (500, 502, 503, 504) and attempt < retries:
+                exc.close()
+                time.sleep((2 ** attempt) + random.uniform(0, 0.3))
+                continue
+            raise http_error(exc)
+        except (urllib.error.URLError, TimeoutError, OSError):
+            # A network timeout may follow a processed/billable request; do not retry it automatically.
+            raise GeminiError('MODEL_UNAVAILABLE', 'Gemini could not be reached or timed out.', 503)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            raise GeminiError('MODEL_SCHEMA_ERROR', 'Gemini returned an invalid response.', 422)
+
+
 def item_schema(strings, arrays=()):
     properties = {k: {'type': 'STRING'} for k in strings}
     properties.update({k: {'type': 'ARRAY', 'items': {'type': 'STRING'}} for k in arrays})
@@ -143,15 +169,7 @@ def generate(task, system, payload):
     url = f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
     req = urllib.request.Request(url, data=json.dumps(body, ensure_ascii=False).encode(),
                                  headers={'Content-Type': 'application/json', 'x-goog-api-key': key}, method='POST')
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as response:
-            raw = json.loads(response.read().decode())
-    except urllib.error.HTTPError as exc:
-        raise http_error(exc)
-    except (urllib.error.URLError, TimeoutError, OSError):
-        raise GeminiError('MODEL_UNAVAILABLE', 'Gemini could not be reached or timed out.', 503)
-    except (json.JSONDecodeError, UnicodeDecodeError):
-        raise GeminiError('MODEL_SCHEMA_ERROR', 'Gemini returned an invalid response.', 422)
+    raw = read_generation_response(req, timeout)
     if not isinstance(raw, dict):
         raise GeminiError('MODEL_SCHEMA_ERROR', 'Gemini response must be an object.', 422)
     feedback = raw.get('promptFeedback') or {}

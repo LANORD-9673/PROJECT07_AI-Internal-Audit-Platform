@@ -128,3 +128,61 @@ def test_diagnostic_endpoint_missing_key(client, monkeypatch):
     response = client.post('/api/llm/check')
     assert response.status_code == 503
     assert response.json()['errors'][0]['code'] == 'MODEL_CONFIGURATION_ERROR'
+
+
+def test_unmapped_403_preserves_diagnostic_and_redacts_key(monkeypatch):
+    secret = 'AIza' + 'x' * 35
+    monkeypatch.setenv('GEMINI_API_KEY', secret)
+    body = {'error': {'message': f'Model permission denied for key {secret}. Contact project administrator.'}}
+    result = gemini.http_error(urllib.error.HTTPError('https://example.test', 403, 'Forbidden', {}, io.BytesIO(json.dumps(body).encode())))
+    assert 'Model permission denied' in str(result)
+    assert 'Contact project administrator' in str(result)
+    assert secret not in str(result)
+    assert '[REDACTED]' in str(result)
+
+
+def test_sanitizes_query_tokens_and_whitespace(monkeypatch):
+    monkeypatch.setenv('GEMINI_API_KEY', 'secret with spaces')
+    text = gemini.sanitized_message('Denied\nsecret%20with%20spaces https://example.test?key=another-key Bearer token-123')
+    assert 'secret%20with%20spaces' not in text and 'another-key' not in text and 'token-123' not in text
+    assert '\n' not in text
+
+
+def test_503_retries_are_bounded_and_can_recover(monkeypatch):
+    monkeypatch.setenv('GEMINI_API_KEY', 'fake-only')
+    monkeypatch.setenv('PROJECT07_GEMINI_MAX_RETRIES', '2')
+    calls = []; delays = []
+    def fake(req, timeout):
+        calls.append(req)
+        if len(calls) < 3: raise urllib.error.HTTPError(req.full_url, 503, 'busy', {}, io.BytesIO(b'{}'))
+        return Response(candidate())
+    monkeypatch.setattr(gemini.urllib.request, 'urlopen', fake)
+    monkeypatch.setattr(gemini.time, 'sleep', delays.append)
+    assert gemini.generate('LLM1_RCM', '', {})[0] == {'controls':[]}
+    assert len(calls) == 3 and len(delays) == 2
+    assert 1 <= delays[0] <= 1.3 and 2 <= delays[1] <= 2.3
+
+
+def test_403_never_retries(monkeypatch):
+    monkeypatch.setenv('GEMINI_API_KEY', 'fake-only')
+    calls = []
+    def fake(req, timeout):
+        calls.append(req)
+        raise urllib.error.HTTPError(req.full_url, 403, 'denied', {}, io.BytesIO(b'{}'))
+    monkeypatch.setattr(gemini.urllib.request, 'urlopen', fake)
+    monkeypatch.setattr(gemini.time, 'sleep', lambda _: pytest.fail('permission error must not retry'))
+    with pytest.raises(gemini.GeminiError): gemini.generate('LLM1_RCM', '', {})
+    assert len(calls) == 1
+
+
+def test_503_stops_after_maximum_retries(monkeypatch):
+    monkeypatch.setenv('GEMINI_API_KEY', 'fake-only')
+    monkeypatch.setenv('PROJECT07_GEMINI_MAX_RETRIES', '2')
+    calls = []
+    def fake(req, timeout):
+        calls.append(req)
+        raise urllib.error.HTTPError(req.full_url, 503, 'busy', {}, io.BytesIO(b'{}'))
+    monkeypatch.setattr(gemini.urllib.request, 'urlopen', fake)
+    monkeypatch.setattr(gemini.time, 'sleep', lambda _: None)
+    with pytest.raises(gemini.GeminiError): gemini.generate('LLM1_RCM', '', {})
+    assert len(calls) == 3

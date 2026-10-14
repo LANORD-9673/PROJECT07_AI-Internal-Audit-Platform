@@ -12,3 +12,8 @@ __pycache__/
 *.log
 .streamlit/secrets.toml
 .venv/
+backend/private_vault/
+private_vault/
+*.nexus.enc
+*.key.enc
+*.map.enc

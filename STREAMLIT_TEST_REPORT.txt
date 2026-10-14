@@ -1,12 +1,7 @@
-Project 07 v1.5 Gemini migration — 2026-10-15
-
-PASS: 67 backend tests (48 existing workflow/rule checks + 19 Gemini transport/config/error checks).
-PASS: Streamlit AppTest startup, demo import, run creation, page navigation and gate enforcement.
-Gemini tests use mocked HTTP; no live API key or call.
-Four LLM tasks call the Gemini Developer API with task-specific responseSchema.
-Grounding validations and human approval gates remain.
-API key sent in x-goog-api-key header; upstream errors are sanitized.
-No automatic retry or provider/model fallback.
-
-Not verified: live Gemini output quality/quota, Google project model access, Windows/PyCharm run, Community Cloud deployment or public GitHub push.
-NotebookLM / Gemini Notebook Enterprise API is not integrated; exact service and account requirements not resolved.
+v1.6.1 sample update — 2026-10-15
+94 backend tests passed; Streamlit AppTest passed.
+New sample has 100 loans, 28 columns, 80 synthetic customer profiles.
+CSV import and ISO timestamps verified; AES-GCM round trip and suggested PII tokenization verified.
+Paired loans/authority pseudonymization preserves all 300 deterministic test results and reason codes.
+Not live LLM quality evaluation or independently approved ground truth.
+No GitHub push or Streamlit deployment performed.

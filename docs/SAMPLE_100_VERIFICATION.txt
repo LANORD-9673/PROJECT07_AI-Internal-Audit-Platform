@@ -1,0 +1,10 @@
+Synthetic dataset validation only, not live LLM evaluation or approved ground truth.
+100 records, 28 columns. UTF-8 BOM, VND amounts, ISO8601 timezone preserved.
+AES-GCM round trip passed; PII columns tokenize; free text removed.
+Rule result types/reasons unchanged before vs after pseudonymizing both loans and authority in the same scope.
+{
+  "PASS": 258,
+  "NOT_APPLICABLE": 20,
+  "INSUFFICIENT_INFORMATION": 5,
+  "EXCEPTION": 17
+}

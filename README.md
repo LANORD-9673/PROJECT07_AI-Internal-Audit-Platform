@@ -1,3 +1,7 @@
+# Project 07 v1.6 — Privacy + Gemini
+
+Bản này thêm màn hình Bảo vệ dữ liệu, file AES-256-GCM, CSV mã giả đã review và retry Gemini 5xx có giới hạn. Đọc **HUONG_DAN_BAO_VE_DU_LIEU.md** trước khi cấu hình vault.
+
 # Project 07 — NEXUS trên Streamlit
 
 Giao diện Streamlit cho toàn bộ workflow v1.4: import policy và data → RCM → test plan → Python tests → human review → findings → reviewed draft report. Bản này không cần deploy Render, build React hoặc chạy backend riêng. React cũ còn trong `frontend` để tham khảo.
@@ -111,3 +115,7 @@ Chưa có link công khai được tạo chỉ từ gói mã này; phải deploy
 Gemini API docs: https://ai.google.dev/api/generate-content
 Gemini keys: https://ai.google.dev/gemini-api/docs/api-key
 Model lifecycle: https://ai.google.dev/gemini-api/docs/deprecations
+
+## Kiểm tra lỗi 403
+
+Mở Vai trò & cấu hình → Kiểm tra key và danh sách model. Nút chỉ gọi API đọc metadata, không sinh nội dung và không gửi policy. Nếu Google có reason phù hợp, app dịch thành thông báo cụ thể về key, service, referrer hoặc IP; nếu không có reason thì vẫn ghi HTTP 403 chung, không suy đoán. Danh sách model đọc thành công chưa chứng minh generateContent được phép hoặc có quota.
