@@ -8,7 +8,7 @@ Ngày phê duyệt và giải ngân mô phỏng từ 09–14/10/2026, sau baseli
 
 1. Mở Bảo vệ dữ liệu, tải sample từ nút mới hoặc dùng CSV tải riêng từ cuộc trò chuyện.
 2. Upload CSV. App mã hóa toàn bộ file thành .nexus.enc.
-3. Review cột: tên, email, phone, CCCD/tài khoản, ngày sinh và IDs được đề xuất TOKENIZE. Trường amount_vnd, thời gian, trạng thái được đề xuất KEEP để phục vụ test. Các trường không cần cho T01–T03 như thu nhập, sản phẩm, mục đích, tài sản bảo đảm và ghi chú bị REMOVE mặc định.
+3. Review cột: tên, email, phone, CCCD/tài khoản, ngày sinh và IDs được đề xuất TOKENIZE. Trường amount_vnd, thời gian, trạng thái được đề xuất KEEP để phục vụ test. Các trường không cần cho T01–T03 như thu nhập, sản phẩm, mục đích, tài sản bảo đảm và ghi chú được MASK để che giá trị và giữ cột.
 4. Nhập scope và reviewer, xác nhận, xuất CSV mã giả. Không tự giữ tất cả cột vì file trông giống dữ liệu thật.
 
 ## Nếu muốn chạy workflow với bản đã token hóa

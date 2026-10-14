@@ -1,3 +1,7 @@
+# Project 07 v1.7 — Export + auditor mapping
+
+Đọc **HUONG_DAN_XUAT_V1_7.md** trước. Bản này giữ đầy đủ cột khi MASK, xuất theo loại nguồn CSV/XLSX trong phạm vi hỗ trợ và không lưu bảng đối chiếu mới trên server. Những mô tả REMOVE/maps persisted bên dưới là lịch sử v1.6 và đã được thay thế bởi hướng dẫn v1.7.
+
 # Project 07 v1.6 — Privacy + Gemini
 
 Bản này thêm màn hình Bảo vệ dữ liệu, file AES-256-GCM, CSV mã giả đã review và retry Gemini 5xx có giới hạn. Đọc **HUONG_DAN_BAO_VE_DU_LIEU.md** trước khi cấu hình vault.

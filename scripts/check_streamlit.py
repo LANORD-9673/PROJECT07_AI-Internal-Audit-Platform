@@ -44,5 +44,7 @@ with tempfile.TemporaryDirectory() as tmp:
         reviewed = app.session_state['private_reviewed']
         assert b'Secret Person' not in reviewed['csv_bytes']
         assert b'private free text' not in reviewed['csv_bytes']
-        assert list((Path(tmp) / 'private-vault' / 'maps').glob('*.map.enc'))
+        assert not list((Path(tmp) / 'private-vault' / 'maps').glob('*.map.enc'))
+        assert b'Secret Person' in reviewed['audit_mapping_csv_bytes']
+        assert b'full_name,amount_vnd,note' in reviewed['export_bytes']
 print('PASS: workflow UI and gates; automatic archive encryption and reviewed pseudonymization UI. No live model called.')

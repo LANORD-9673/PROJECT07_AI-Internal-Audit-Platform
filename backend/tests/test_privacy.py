@@ -1,5 +1,7 @@
 import base64
 import json
+import io
+import csv
 import os
 from pathlib import Path
 import pandas as pd
@@ -54,14 +56,14 @@ def test_unknown_columns_removed_and_personal_columns_tokenized(vault):
     frame = pd.DataFrame({'full_name':['Secret Person'], 'phone':['0901234567'],
                           'amount_vnd':['100000'], 'note':['private unstructured data']})
     plan = privacy.suggest_columns(frame)
-    assert {x['column']: x['action'] for x in plan} == {'full_name':'TOKENIZE','phone':'TOKENIZE','amount_vnd':'KEEP','note':'REMOVE'}
+    assert {x['column']: x['action'] for x in plan} == {'full_name':'TOKENIZE','phone':'TOKENIZE','amount_vnd':'KEEP','note':'MASK'}
     encrypted = privacy.protect_file(frame.to_csv(index=False).encode(), 'source.csv')
     result = privacy.pseudonymize(frame, plan, 'SCOPE', 'Test reviewer', encrypted['file_id'])
     assert b'Secret Person' not in result['csv_bytes'] and b'0901234567' not in result['csv_bytes']
-    assert 'note' not in result['frame'].columns and result['frame']['amount_vnd'][0] == '100000'
-    mapping = privacy.restore_mapping(result['mapping_reference'])
-    assert 'Secret Person' in mapping['tokens'].values()
-    for file in (vault / 'maps').iterdir(): assert b'Secret Person' not in file.read_bytes()
+    assert result['frame']['note'][0] == '[REDACTED]' and result['frame']['amount_vnd'][0] == '100000'
+    assert b'Secret Person' in result['audit_mapping_csv_bytes']
+    assert not list((vault / 'maps').iterdir())
+    assert list(result['frame'].columns) == list(frame.columns)
 
 
 def test_scope_keeps_paired_employee_ids_consistent(vault):
@@ -108,3 +110,63 @@ def test_missing_wrapped_key_prevents_recovery(vault):
     protected = privacy.protect_file(b'secret', 'source')
     (vault / 'keys' / (protected['file_id'] + '.key.enc')).unlink()
     with pytest.raises(FileNotFoundError): privacy.restore_file(protected['encrypted_bytes'])
+
+
+def test_csv_preserves_columns_delimiter_bom_and_newlines(vault):
+    raw = '\ufeffrow_id;full_name;amount_vnd;note\r\nR1;Nguyễn An;100000;private text\r\n'.encode('utf-8')
+    frame = privacy.read_table(raw, 'input.csv')
+    protected = privacy.protect_file(raw, 'input.csv')
+    result = privacy.pseudonymize(frame, privacy.suggest_columns(frame), 'scope', 'auditor', protected['file_id'], raw, 'input.csv')
+    assert result['export_filename'] == 'protected_input.csv'
+    assert result['export_bytes'].startswith(b'\xef\xbb\xbf')
+    text = result['export_bytes'].decode('utf-8-sig')
+    assert text.split('\r\n')[0] == 'row_id;full_name;amount_vnd;note'
+    assert '\n' not in text.replace('\r\n','')
+    data = list(csv.reader(io.StringIO(text), delimiter=';'))
+    assert len(data[1]) == 4 and data[1][2] == '100000' and data[1][3] == '[REDACTED]'
+    assert not list((vault / 'maps').iterdir())
+    report = json.loads(result['audit_report_json_bytes'])
+    assert report['column_count'] == 4 and len(report['cell_details']) == 4
+    assert report['cell_details'][1]['original_value'] == 'Nguyễn An'
+
+
+def test_legacy_remove_masks_in_place(vault):
+    frame = pd.DataFrame({'customer_id':['C01'], 'private_notes':['secret']})
+    file = privacy.protect_file(b'source', 'input.csv')
+    result = privacy.pseudonymize(frame,[{'column':'customer_id','action':'TOKENIZE'},
+                                      {'column':'private_notes','action':'REMOVE'}],'scope','auditor',file['file_id'])
+    assert list(result['frame'].columns) == list(frame.columns)
+    assert result['frame']['private_notes'][0] == '[REDACTED]'
+
+
+def test_xlsx_preserves_single_sheet_layout_and_numeric_types(vault):
+    # Synthetic in-memory fixture for application serializer behavior, not a user deliverable.
+    from openpyxl import Workbook, load_workbook
+    from openpyxl.styles import Font
+    workbook = Workbook(); sheet = workbook.active; sheet.title = 'Loans'
+    sheet.append(['full_name','amount_vnd','private_note']); sheet.append(['Secret Person',125000000,'secret'])
+    sheet['A2'].font = Font(bold=True, color='FF123456')
+    sheet['B2'].number_format = '#,##0'; sheet.column_dimensions['A'].width = 32
+    sheet.freeze_panes = 'A2'; sheet.auto_filter.ref = 'A1:C2'
+    buffer = io.BytesIO(); workbook.save(buffer); raw = buffer.getvalue()
+    frame = privacy.read_table(raw,'input.xlsx'); file = privacy.protect_file(raw,'input.xlsx')
+    result = privacy.pseudonymize(frame,privacy.suggest_columns(frame),'scope','auditor',file['file_id'],raw,'input.xlsx')
+    output = load_workbook(io.BytesIO(result['export_bytes'])); sheet = output['Loans']
+    assert output.sheetnames == ['Loans'] and sheet.max_column == 3 and sheet.max_row == 2
+    assert sheet['A2'].value.startswith('NX_') and sheet['A2'].font.bold and sheet['A2'].font.color.rgb == 'FF123456'
+    assert sheet['B2'].value == 125000000 and sheet['B2'].data_type == 'n' and sheet['B2'].number_format == '#,##0'
+    assert sheet['C2'].value == '[REDACTED]'
+    assert sheet.column_dimensions['A'].width == 32 and sheet.freeze_panes == 'A2' and sheet.auto_filter.ref == 'A1:C2'
+    assert result['export_filename'].endswith('.xlsx')
+    assert not list((vault / 'maps').iterdir())
+
+
+def test_multi_sheet_export_fails_before_releasing_mapping(vault):
+    from openpyxl import Workbook
+    workbook=Workbook(); workbook.active.append(['full_name']); workbook.active.append(['Person'])
+    workbook.create_sheet('Hidden personal data')
+    buffer=io.BytesIO();workbook.save(buffer);raw=buffer.getvalue()
+    frame=privacy.read_table(raw,'multi.xlsx');file=privacy.protect_file(raw,'multi.xlsx')
+    with pytest.raises(privacy.PrivacyError,match='nhiều sheet'):
+        privacy.pseudonymize(frame,privacy.suggest_columns(frame),'scope','auditor',file['file_id'],raw,'multi.xlsx')
+    assert not list((vault / 'maps').iterdir())

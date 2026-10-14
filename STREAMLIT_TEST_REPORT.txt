@@ -1,7 +1,8 @@
-v1.6.1 sample update — 2026-10-15
-94 backend tests passed; Streamlit AppTest passed.
-New sample has 100 loans, 28 columns, 80 synthetic customer profiles.
-CSV import and ISO timestamps verified; AES-GCM round trip and suggested PII tokenization verified.
-Paired loans/authority pseudonymization preserves all 300 deterministic test results and reason codes.
-Not live LLM quality evaluation or independently approved ground truth.
-No GitHub push or Streamlit deployment performed.
+Project 07 v1.7 — 2026-10-15
+98 backend tests passed; Streamlit AppTest passed.
+Sample validation: original 100x28 -> protected 100x28, detailed auditor mapping has 2800 cell records, no new .map.enc on server.
+CSV delimiter/BOM/newlines/headers/order verified.
+Single-sheet XLSX format, style, numeric cell types, widths, freeze panes and filter preserved in serializer test.
+Multi-sheet unsupported workbook export fails closed.
+Original .nexus.enc archive and wrapped keys are still stored in private vault. Mapping CSV/JSON exists temporarily in session/process RAM for download; not written to vault, database or logs. Legacy mapping files are not automatically deleted.
+Not verified: live deployment, real customer data, production access control, all XLSX native features or precise Streamlit memory release timing.

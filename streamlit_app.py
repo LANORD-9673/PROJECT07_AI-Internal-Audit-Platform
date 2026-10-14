@@ -135,7 +135,7 @@ if page == 'Vai trò & cấu hình':
 elif page == 'Bảo vệ dữ liệu':
     from services.privacy import protect_file, read_table, suggest_columns, pseudonymize, PrivacyError
     st.subheader('Bảo vệ dữ liệu trước khi phân tích')
-    st.info('File gốc được mã hóa AES-256-GCM ngay sau khi upload, nếu chủ app đã cấu hình khóa chủ. Bản mã giả CSV cần auditor review trước khi tải hoặc import.')
+    st.info('File gốc được mã hóa AES-256-GCM ngay sau khi upload, nếu chủ app đã cấu hình khóa chủ. Bản mã giả giữ cấu trúc nguồn và cần auditor review trước khi tải hoặc import.')
     st.caption('Mã giả không phải dữ liệu ẩn danh tuyệt đối. Cột KEEP còn là dữ liệu có thể đọc được. Chỉ gửi bản đã review vào quy trình kiểm toán.')
     sample_path = ROOT / 'demo' / 'privacy_sample_loans_100.csv'
     if sample_path.is_file():
@@ -168,13 +168,13 @@ elif page == 'Bảo vệ dữ liệu':
                 frame = read_table(raw, file.name)
             except PrivacyError as exc:
                 st.warning(str(exc)); st.stop()
-            st.write(f'Bảng đọc được: {len(frame)} dòng, {len(frame.columns)} cột. XLSX xử lý sheet đầu tiên.')
+            st.write(f'Bảng đọc được: {len(frame)} dòng, {len(frame.columns)} cột. Xuất giữ đủ cột và thứ tự. XLSX chỉ hỗ trợ một sheet dữ liệu không có công thức/ảnh/chart.')
             with st.form('privacy_review_' + protected['file_id']):
                 default_scope = st.session_state.setdefault('privacy_default_scope', 'AUDIT-' + os.urandom(8).hex())
                 scope = st.text_input('Mã phạm vi kiểm toán — dùng cùng mã cho loans và authority để giữ liên kết ID', default_scope)
                 plan = st.data_editor(pd.DataFrame(suggest_columns(frame)), hide_index=True, width='stretch',
                     disabled=['column', 'reason'], num_rows='fixed',
-                    column_config={'action': st.column_config.SelectboxColumn('Xử lý cột', options=['TOKENIZE', 'REMOVE', 'KEEP'], required=True)})
+                    column_config={'action': st.column_config.SelectboxColumn('Xử lý cột', options=['TOKENIZE', 'MASK', 'KEEP'], required=True)})
                 reviewer = st.text_input('Người review phương án bảo vệ')
                 checked = st.checkbox('Tôi đã đối chiếu file gốc; hiểu các cột KEEP còn đọc được và đã xác nhận mục đích sử dụng')
                 submitted = st.form_submit_button('Duyệt và xuất bản mã giả')
@@ -184,20 +184,27 @@ elif page == 'Bảo vệ dữ liệu':
                 else:
                     try:
                         edited = plan.to_dict('records')
-                        reviewed = pseudonymize(frame, edited, scope, reviewer, protected['file_id'])
+                        reviewed = pseudonymize(frame, edited, scope, reviewer, protected['file_id'], source_bytes=raw, source_name=file.name)
                         reviewed['source_fingerprint'] = fingerprint
                         st.session_state['privacy_default_scope'] = scope.strip()
                         st.session_state['private_reviewed'] = reviewed
-                        st.success('Đã tạo CSV mã giả và lưu bảng ánh xạ đã mã hóa.')
+                        st.success('Đã tạo file đúng định dạng nguồn và bảng đối chiếu riêng để auditor tải xuống. Không ghi bảng đối chiếu mới xuống vault/DB/log.')
                     except PrivacyError as exc:
                         st.error(str(exc))
                     except OSError:
-                        st.error('Vault không truy cập được; chưa xuất CSV mã giả.')
+                        st.error('Không xử lý được file; chưa xuất bản mã giả.')
             reviewed = st.session_state.get('private_reviewed')
             if reviewed and reviewed['source_fingerprint'] == fingerprint:
                 st.caption('Nếu đổi phương án hoặc scope, bấm Duyệt và xuất lại. Bản bên dưới là kết quả của lần duyệt đã lưu.')
                 st.dataframe(reviewed['frame'].head(20), hide_index=True, width='stretch')
-                st.download_button('Tải CSV mã giả đã review', reviewed['csv_bytes'], 'protected_' + protected['file_id'] + '.csv', 'text/csv', key='protected_csv_download')
+                st.download_button('1. Tải dữ liệu đã bảo vệ — đúng định dạng nguồn', reviewed['export_bytes'],
+                                   reviewed['export_filename'], reviewed['export_mime'], key='protected_csv_download')
+                st.warning('Bảng đối chiếu CSV và hồ sơ JSON đều chứa dữ liệu gốc. Auditor lưu ở nơi riêng có quyền truy cập phù hợp; không import bảng này vào workflow hoặc gửi cho LLM.')
+                st.download_button('2. Tải bảng đối chiếu chi tiết cho auditor', reviewed['audit_mapping_csv_bytes'],
+                                   'AUDITOR_ONLY_mapping_' + protected['file_id'] + '.csv', 'text/csv', key='auditor_mapping_download')
+                st.download_button('3. Tải hồ sơ đối chiếu JSON có dữ liệu gốc', reviewed['audit_report_json_bytes'],
+                                   'AUDITOR_ONLY_review_' + protected['file_id'] + '.json', 'application/json', key='auditor_review_download')
+                st.caption('Bảng đối chiếu chỉ được giữ tạm trong RAM của phiên để phục vụ tải; tải và lưu riêng trước khi đóng/reboot app.')
                 st.write('Mã tham chiếu bảng ánh xạ: `' + reviewed['mapping_reference'] + '`')
                 with st.form('import_private_' + protected['file_id']):
                     source = st.selectbox('Import bản đã review vào workflow', ['loans', 'authorities'])

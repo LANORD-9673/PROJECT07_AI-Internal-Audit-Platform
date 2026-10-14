@@ -1,3 +1,5 @@
+> Lịch sử v1.6. Với v1.7, đọc HUONG_DAN_XUAT_V1_7.md: MASK giữ cột và mapping mới chỉ tải riêng cho auditor, không lưu vault. Phần tạo khóa/giải mã archive vẫn áp dụng.
+
 # Project 07 v1.6 — Bảo vệ dữ liệu đầu vào
 
 ## Kết quả của tính năng
