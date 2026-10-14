@@ -1,0 +1,5 @@
+task,artifact_id,claim_or_required_item,source_snapshot_id,source_clause_or_result_id,grounded_0_or_1,covered_0_or_1,unsupported_0_or_1,reviewer,review_note
+LLM1_RCM,,,,,,,,,
+LLM2_PLAN,,,,,,,,,
+LLM3_FINDINGS,,,,,,,,,
+LLM4_REPORT,,,,,,,,,

@@ -1,0 +1,183 @@
+NEXUS — TÀI LIỆU CHÍNH SÁCH GIẢ LẬP CHO PROJECT 07
+Mã: POL-LOAN-01 | Phiên bản nội dung: v1.0
+Tên: QUY ĐỊNH KIỂM SOÁT PHÊ DUYỆT VÀ GIẢI NGÂN KHOẢN VAY
+Trạng thái: APPROVED — NHÓM PROJECT 07 PHÊ DUYỆT NỘI BỘ (CHÍNH SÁCH GIẢ LẬP)
+Lần sửa: REV-A (phương án A — phạm vi T02 giới hạn; bản BASELINE đã chốt)
+Quyết định nghiệp vụ: Nhóm Project 07 thống nhất phương án A và nội dung T01–T03
+Bộ chính sách kỹ thuật: BASELINE
+Ngày ban hành (nội bộ mô phỏng): 08/10/2026
+Ngày hiệu lực: 2026-10-08T00:00:00+07:00
+Đơn vị ban hành giả lập: Nexus
+
+PHẠM VI VÀ HIỆU LỰC PHÊ DUYỆT
+Đây là chính sách GIẢ LẬP được nhóm Project 07 phê duyệt nội bộ để thử nghiệm
+Rule Engine; KHÔNG phải quy chế ngân hàng có hiệu lực pháp lý, không thay thế
+bộ Nexus v1.1. Ngưỡng 500 triệu và 2 tỷ là quy tắc đã được nhóm chấp thuận
+cho phạm vi prototype, không được diễn giải là giới hạn của ngân hàng thực.
+Phê duyệt chính sách không tự chứng minh dữ liệu đầu vào, ground truth hay
+điều kiện chạy trên từng Audit Run đã được xác minh.
+Mã duyệt chính sách: NEXUS-APP-POL-LOAN-01-20261008
+Mã duyệt bảng phân quyền DEMO: NEXUS-APP-AUTH-20261008
+
+I. MỤC ĐÍCH VÀ PHẠM VI
+1.1. Mục đích: làm cơ sở cho ba bài kiểm thử tất định của Project 07:
+  T01 — phân tách người lập hồ sơ và người phê duyệt;
+  T02 — kiểm tra hạn mức được cấp cho cá nhân tại chi nhánh và thời điểm phê duyệt;
+  T03 — kiểm tra tình trạng phê duyệt và thứ tự thời gian trước giải ngân.
+1.2. Phạm vi kỹ thuật của T02: khoản vay ghi bằng VND có giá trị không vượt
+  2.000.000.000 VND. Khoản lớn hơn 2 tỷ hoặc ngoại tệ được đánh dấu
+  OUT_OF_SCOPE, KHÔNG được tự kết luận hợp lệ hoặc vi phạm.
+1.3. Đây là phạm vi của bài thử prototype, không khẳng định phạm vi áp dụng
+  của chính sách tín dụng trên thực tế.
+1.4. GIỚI HẠN CỐT LÕI CỦA PHƯƠNG ÁN A: T02 không tự kiểm tra việc chức danh
+  có được phân quyền theo Tier hay không và không đánh giá các cấp phê duyệt
+  theo cơ cấu tổ chức. Trường role trong bảng phân quyền chỉ phục vụ kiểm tra
+  sự hiện diện và phát hiện bản ghi trùng thời gian mâu thuẫn; bản thân tên role
+  không chứng minh đã có ủy quyền đúng. PASS T02 chỉ có nghĩa hạn mức cá nhân
+  đủ và bản ghi phân quyền phù hợp các điều kiện dữ liệu đang kiểm tra.
+1.5. T02 hiện kiểm tra cả khoản không APPROVED nếu có đủ đầu vào; kết quả này
+  không phải khẳng định hồ sơ đã được phê duyệt. Nhóm phải xác nhận hành vi này.
+1.6. Các điều khoản bên dưới mô tả quy tắc PROTOTYPE đang triển khai; việc
+  nhóm phê duyệt baseline là một bước quản trị riêng, không suy ra từ PASS.
+
+II. CÁC QUY TẮC ĐỀ XUẤT ĐỂ NHÓM XÁC NHẬN
+
+[POL-LOAN-01-T01] Phân tách nhiệm vụ
+2.1. Với hồ sơ APPROVED, maker_id (người lập) phải khác approver_id
+  (người phê duyệt). Nếu bằng nhau, đánh dấu EXCEPTION.
+2.2. Hồ sơ APPROVED thiếu maker_id hoặc approver_id: INSUFFICIENT_INFORMATION.
+2.3. Hồ sơ không ở trạng thái APPROVED: T01 NOT_APPLICABLE; nếu thiếu
+  approval_status: INSUFFICIENT_INFORMATION.
+  [ĐÃ CHỐT NỘI BỘ: cách xử lý hồ sơ không được phê duyệt và thiếu trạng thái]
+
+[POL-LOAN-01-T02] Thẩm quyền phê duyệt
+2.4. Ngưỡng phân loại dùng cho bài thử:
+  - TIER_1: số tiền <= 500.000.000 VND, bao gồm ĐÚNG 500 triệu;
+  - TIER_2: 500.000.000 < số tiền <= 2.000.000.000 VND,
+    bao gồm ĐÚNG 2 tỷ;
+  - Trên 2 tỷ: OUT_OF_SCOPE đối với engine hiện hành.
+  [ĐÃ CHỐT NỘI BỘ: hai ngưỡng chỉ áp dụng cho prototype; không hàm ý pháp lý]
+2.5. Đối chiếu người duyệt với bảng authority được duyệt riêng, theo
+  employee_id, branch_id, thời điểm approval_time và authority_limit_vnd.
+  Bản ghi có hiệu lực nếu valid_from <= approval_time <= valid_to
+  (các timestamp bắt buộc kèm múi giờ).
+  [ĐÃ CHỐT NỘI BỘ: bao gồm hai đầu mút hiệu lực]
+2.6. Nếu hạn mức được cấp nhỏ hơn số tiền vay: EXCEPTION.
+  Nếu đủ hạn mức, không bị mâu thuẫn phân quyền và thỏa điều kiện đã xác nhận:
+  PASS theo logic hiện hành.
+  THEO PHƯƠNG ÁN A: KHÔNG thực hiện kiểm tra ma trận role-to-tier.
+  Tên role bắt buộc có, nhưng chỉ dùng nhận biết thiếu role và xung đột
+  giữa nhiều bản ghi active. PASS chỉ xác nhận mức trần authority_limit_vnd
+  đủ cho amount_vnd, đúng employee_id + branch_id + hiệu lực theo thời gian.
+  Danh sách phân quyền phải được phê duyệt độc lập trước khi chạy engine.
+  [ĐÃ CHỐT NỘI BỘ: giới hạn phạm vi này; vẫn phải kiểm tra từng bản ghi authority thực tế.]
+2.7. T02 không có bản ghi phân quyền còn hiệu lực: INSUFFICIENT_INFORMATION
+  (NO_ACTIVE_AUTHORITY), KHÔNG tự kết luận EXCEPTION; cần người xem xét.
+  Bản ghi phân quyền sai định dạng của cùng cá nhân/chi nhánh: BLOCKED
+  (INVALID_AUTHORITY_RECORD). Bản ghi đồng thời có role hoặc hạn mức
+  mâu thuẫn: BLOCKED (OVERLAPPING_AUTHORITY_CONFLICT).
+  Thiếu role trên bản ghi active: INSUFFICIENT_INFORMATION (MISSING_ROLE).
+  Ngoại tệ: OUT_OF_SCOPE (NON_VND).
+  [ĐÃ CHỐT NỘI BỘ: taxonomy xử lý thiếu dữ liệu/xung đột]
+2.7a. Theo code P2 hiện hành: nếu thiếu amount_vnd, currency, approver_id hoặc
+  approval_time thì INSUFFICIENT_INFORMATION; nếu amount_vnd > 2 tỷ VND
+  hoặc ngoại tệ thì OUT_OF_SCOPE; nếu thiếu branch_id hoặc timestamp không
+  hợp lệ thì INSUFFICIENT_INFORMATION. Thứ tự ưu tiên này ảnh hưởng đến
+  reason_code khi một hồ sơ cùng lúc có nhiều vấn đề.
+2.7b. Với bảng phân quyền, hiệu lực áp dụng bao gồm đúng thời điểm
+  valid_from và đúng thời điểm valid_to. Cùng một người + chi nhánh có nhiều
+  bản ghi active giống role và hạn mức được engine xem là không xung đột;
+  các giá trị khác nhau bị BLOCKED. Nhóm đã chấp thuận cách diễn giải này trong phạm vi demo.
+
+[POL-LOAN-01-T03] Kiểm soát trước giải ngân
+2.8. Nếu đã giải ngân (DISBURSED), trạng thái phê duyệt phải APPROVED.
+  Nếu REJECTED nhưng vẫn DISBURSED: EXCEPTION.
+  Nếu DISBURSED khi trạng thái khác APPROVED: EXCEPTION.
+2.9. Với khoản đã giải ngân và APPROVED, approval_time phải NHỎ HƠN
+  disbursement_time. Nếu hai thời điểm bằng nhau hoặc phê duyệt muộn hơn:
+  EXCEPTION. Timestamp thiếu hoặc không hợp lệ: INSUFFICIENT_INFORMATION.
+  Nếu NOT_DISBURSED: T03 NOT_APPLICABLE.
+  [ĐÃ CHỐT NỘI BỘ: quy ước thứ tự thời gian và cách xử lý thiếu dữ liệu]
+
+III. QUẢN TRỊ KẾT QUẢ VÀ BẰNG CHỨNG
+3.1. Rule Engine xuất test_result độc lập với review_state. Kết quả mới
+  được tạo với review_state=PENDING; không tự coi PASS là phê duyệt của KTV.
+3.2. Từng kết quả cần có run_id, row_id, test_id, reason_code, liên kết
+  snapshot và source_line; phiên bản nguồn phải được giữ nguyên theo Audit Run.
+3.3. Dữ liệu ground truth chỉ được dùng để đánh giá/kiểm thử, không đưa
+  vào luồng runtime để quyết định kết quả khoản vay.
+3.4. T01–T03 chỉ chạy khi đúng snapshot baseline được duyệt.
+  Không được áp dụng ngầm bộ này lên Nexus v1.1 hoặc các bài P01–P06.
+
+IV. DỮ LIỆU PHỤC VỤ KIỂM THỬ
+4.1. Khoản vay: row_id, loan_id, maker_id, approver_id, amount_vnd,
+  currency, branch_id, approval_status, approval_time,
+  disbursement_status, disbursement_time.
+4.2. Phân quyền: employee_id, branch_id, role, authority_limit_vnd,
+  valid_from, valid_to.
+4.3. Tất cả thời gian phục vụ đối chiếu phải được biểu diễn ISO 8601 có
+  timezone; ví dụ 2026-10-08T00:00:00+07:00 (chỉ ví dụ định dạng).
+
+V. QUYẾT ĐỊNH NỘI BỘ VÀ KIỂM SOÁT TRIỂN KHAI
+[X] A1. Nhóm chấp thuận phương án A; T02 KHÔNG đánh giá role-to-tier.
+[X] A2. Nhóm xác nhận phê duyệt bảng phân quyền DEMO dưới mã
+        NEXUS-APP-AUTH-20261008. Cần bảo toàn dữ liệu và đối chiếu snapshot.
+[X] A3. T02 kiểm tra cả hồ sơ không APPROVED khi có đủ dữ liệu.
+[X] A4. Chấp thuận các ngưỡng 500 triệu và 2 tỷ; >2 tỷ/ngoại tệ OUT_OF_SCOPE;
+        các trường hợp thiếu dữ liệu và xung đột theo Điều II.
+[X] A5. Khoảng hiệu lực authority bao gồm valid_from và valid_to, có timezone.
+[X] A6. T01 chỉ áp dụng cho APPROVED; thiếu trạng thái = INSUFFICIENT_INFORMATION.
+[X] A7. T03 đòi hỏi phê duyệt trước giải ngân nghiêm ngặt; cùng timestamp
+        và REJECTED nhưng đã giải ngân = EXCEPTION.
+[X] A8. Chấp thuận taxonomy kết quả, reason_code và review_state=PENDING.
+[X] A9. Nhóm Project 07 chốt chính sách mô phỏng hiệu lực 08/10/2026,
+        mã NEXUS-APP-POL-LOAN-01-20261008.
+[ ] A10. Người phụ trách triển khai cần đối chiếu bản cuối với engine.py,
+         P2 Decision Table và CSV đầu vào trước khi thực thi; chưa xác nhận ở đây.
+[ ] A11. Ground truth phải được rà soát độc lập và phê duyệt riêng trước
+         khi dùng đánh giá; chưa xác nhận hoàn tất.
+[ ] A12. Sau khi upload BASELINE cần ghi snapshot_id và SHA256 của nội dung
+         thực tế, kiểm tra bản authority gắn trong Audit Run và lưu dấu vết.
+
+VI. HƯỚNG DẪN ĐƯA VÀO PROJECT 07
+6.1. Lưu file BASELINE này ở dạng UTF-8 TXT; giữ nguyên bản DRAFT và snapshot cũ.
+6.2. POST /api/import/policies: file=TXT này; policy_id=POL-LOAN-01;
+  policy_set_id=BASELINE; effective_from=2026-10-08T00:00:00+07:00.
+6.3. Lưu snapshot_id và SHA256 API trả về; đối chiếu với SHA256 của chính
+  file này trước khi dùng. Không ghi SHA256 vào nội dung file vì sẽ đổi hash.
+6.4. P2 yêu cầu cấu hình PROJECT07_APPROVED_BASELINE_SHA256 bằng SHA256
+  đã đối chiếu; PROJECT07_AUTHORITY_APPROVAL_REFERENCE bằng
+  NEXUS-APP-AUTH-20261008. Chỉ chạy nếu xác nhận đúng bộ snapshot.
+6.5. Xem xét ngày giao dịch: nếu khoản vay phát sinh trước ngày hiệu lực
+  hoặc không phù hợp phạm vi lịch sử, cần đánh giá tính áp dụng trước khi
+  diễn giải kết quả; engine hiện tại không tự kiểm tra ngày hiệu lực policy.
+6.6. Không sử dụng output Rule Engine để tự động tạo ground truth.
+
+VII. THÔNG TIN PHÊ DUYỆT NỘI BỘ (GIẢ LẬP)
+Tổ chức: Nexus
+Người/nhóm phê duyệt: Nhóm Project 07 (xác nhận trong hội thoại)
+Ngày chốt nội bộ: 08/10/2026
+Ngày hiệu lực: 2026-10-08T00:00:00+07:00
+Mã phê duyệt chính sách: NEXUS-APP-POL-LOAN-01-20261008
+Mã phê duyệt bảng phân quyền: NEXUS-APP-AUTH-20261008
+Quyết định T02 phương án A: ĐỒNG Ý
+Giới hạn: T02 chỉ đối chiếu hạn mức cá nhân, chi nhánh và hiệu lực;
+  không kiểm tra chức danh được phân quyền theo Tier.
+Ghi chú: Không có biên bản ký số đính kèm; các mã trên là mã nội bộ
+  do nhóm thống nhất phục vụ đồ án, không phải xác nhận của ngân hàng.
+
+VIII. NHỮNG GIỚI HẠN VÀ VIỆC CHƯA HOÀN TẤT
+- Chưa có xác nhận độc lập rằng mọi bản ghi authority demo đã được kiểm tra
+  về chi nhánh, hạn mức và mốc hiệu lực.
+- Chưa hoàn thành việc đối chiếu ngày giao dịch của 60 hồ sơ với ngày
+  hiệu lực 08/10/2026; cần làm trước khi diễn giải kết quả kiểm toán.
+- Không có kiểm tra role-to-tier trong P2 hiện tại.
+- Việc phê duyệt nội bộ này không thay cho Human Gate 2 của P3.
+- A10, A11 và A12 vẫn phải hoàn tất trước nghiệm thu kết quả P2.
+
+TÀI LIỆU ĐỐI CHIẾU NỘI BỘ
+- Project 07 v1.3.3 Final Web Development Design.
+- P2_Decision_Table.md và các module engine.py, api.py.
+- Bản nguồn REV-A DRAFT và snapshots DRAFT phải được lưu riêng.
+
+KẾT THÚC — POL-LOAN-01 v1.0 REV-A, BASELINE GIẢ LẬP NỘI BỘ.

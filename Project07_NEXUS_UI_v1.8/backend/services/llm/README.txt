@@ -1,0 +1,1 @@
+Four local Ollama tasks are implemented in services/workflow.py: LLM1_RCM, LLM2_PLAN, LLM3_FINDINGS, LLM4_REPORT. No fake live fallback. Human gates and structural validators are required. See docs/HUONG_DAN_GIANG_VIEN.md.

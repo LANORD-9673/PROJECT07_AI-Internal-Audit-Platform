@@ -1,0 +1,5 @@
+NEXUS UI 1.8
+PASS Streamlit AppTest: homepage rendering, Dark/Light toggle, navigation callback, all workflow pages, demo import and run creation, mandatory review guard, archive encryption and reviewed privacy exports.
+No live Gemini call. Backend rules and review gates unchanged.
+Browser screenshot validation unavailable: browser binary absent; attempted browser download failed. Desktop/mobile visual appearance and animation need verification after deployment.
+Theme choice persists within Streamlit session. Initial connection screen remains framework managed. Reduced-motion preference disables animation.

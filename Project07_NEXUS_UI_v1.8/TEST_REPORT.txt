@@ -1,0 +1,42 @@
+PROJECT 07 v1.4 — VERIFIED CHECKS
+Date: 2026-10-14
+Environment: Linux, Python 3.12, Node 24
+
+BACKEND:
+Command from project root: python -m pytest backend/tests -q
+Result: 48 passed (5.17s), 1 third-party Starlette TestClient deprecation warning.
+Tests cover import CSV/XLSX/DOCX/PDF; immutable snapshots; baseline rules;
+mandatory default gates; full workflow; review invalidation and report locking;
+invalid policy quotation; malformed/unsupported/incomplete test plans;
+wrong finding evidence/control/quote/coverage; offline model fail-closed.
+The full integration workflow evaluates 60 loans x 3 tests = 180 results,
+then reviews exceptions, generates three evidence-linked findings using a
+TEST STUB, reviews findings and drafts/reviews the report. STUB IS NOT LIVE.
+
+BUNDLED DEMO RULE COUNTS (not independent ground truth):
+PASS 120; EXCEPTION 20; INSUFFICIENT_INFORMATION 16;
+OUT_OF_SCOPE 8; BLOCKED 8; NOT_APPLICABLE 8.
+Exceptions: T01 4; T02 4; T03 12.
+
+HAND-AUTHORED REGRESSION BENCHMARK (18 fixed cases):
+Status accuracy: 100%; status+reason accuracy: 100%.
+Exception precision: 100%; exception recall: 100%.
+Always-PASS baseline accuracy: 27.78% (5/18).
+Expected labels are manually authored from the decision table, not generated
+by the engine. These labels are not independently certified by an auditor.
+These metrics evaluate Python, NOT live LLM semantic quality.
+
+FRONTEND:
+Command: npm ci; npm run build (from frontend/)
+Result: PASS, 1583 modules transformed, build completed in 7.45s after final frontend edits.
+
+NOT VERIFIED HERE:
+- Live Ollama/qwen3:4b outputs and model semantic accuracy.
+- Windows .bat/.ps1 execution (scripts reviewed as source).
+- Visual browser QA: no Chromium executable available; download unavailable.
+- Multi-user concurrency, authentication/RBAC, signed approval or production readiness.
+
+REQUIRED GROUP FOLLOW-UP:
+Run Windows startup + live Ollama before presenting. Complete the independent
+LLM review worksheet and verify authority/policy applicability. Do not report
+stub integration results or structural checks as live LLM accuracy.
