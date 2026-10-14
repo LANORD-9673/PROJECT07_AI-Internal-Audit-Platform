@@ -1,0 +1,703 @@
+openapi: 3.1.0
+info:
+  title: Project 07 — AI Internal Audit Platform
+  description: Policy → RCM → plan → deterministic tests → reviewed findings → reviewed
+    draft report. Four local LLM tasks; mandatory human gates.
+  version: 1.4.0-LLM-HUMAN-REVIEW
+paths:
+  /api/health:
+    get:
+      summary: Health
+      operationId: health_api_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/import/policies:
+    post:
+      summary: Import Policy
+      operationId: import_policy_api_import_policies_post
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_import_policy_api_import_policies_post'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/import/loans:
+    post:
+      summary: Import Loans
+      operationId: import_loans_api_import_loans_post
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_import_loans_api_import_loans_post'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/import/authorities:
+    post:
+      summary: Import Authorities
+      operationId: import_authorities_api_import_authorities_post
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_import_authorities_api_import_authorities_post'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/snapshots/{snapshot_id}:
+    get:
+      summary: Get Snapshot
+      operationId: get_snapshot_api_snapshots__snapshot_id__get
+      parameters:
+      - name: snapshot_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Snapshot Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/audit-runs:
+    get:
+      summary: Runs
+      operationId: runs_api_audit_runs_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+    post:
+      summary: Create Audit Run
+      operationId: create_audit_run_api_audit_runs_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuditRunCreate'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/audit-runs/{run_id}:
+    get:
+      summary: Get Audit Run
+      operationId: get_audit_run_api_audit_runs__run_id__get
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/policies/{snapshot_id}/text:
+    get:
+      summary: Get Policy Text
+      description: Reviewer/P3 can read the extracted source, never ground truth.
+      operationId: get_policy_text_api_policies__snapshot_id__text_get
+      parameters:
+      - name: snapshot_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Snapshot Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/audit-runs/{run_id}/tests/execute:
+    post:
+      summary: Execute
+      operationId: execute_api_audit_runs__run_id__tests_execute_post
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/audit-runs/{run_id}/results:
+    get:
+      summary: Results
+      operationId: results_api_audit_runs__run_id__results_get
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/snapshots:
+    get:
+      summary: Snapshots
+      operationId: snapshots_api_snapshots_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/audit-runs/{run_id}/workflow:
+    get:
+      summary: Workflow
+      operationId: workflow_api_audit_runs__run_id__workflow_get
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/audit-runs/{run_id}/rcm/generate:
+    post:
+      summary: Rcm Generate
+      operationId: rcm_generate_api_audit_runs__run_id__rcm_generate_post
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/audit-runs/{run_id}/rcm/approve:
+    post:
+      summary: Rcm Approve
+      operationId: rcm_approve_api_audit_runs__run_id__rcm_approve_post
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/audit-runs/{run_id}/test-plan/generate:
+    post:
+      summary: Plan Generate
+      operationId: plan_generate_api_audit_runs__run_id__test_plan_generate_post
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/audit-runs/{run_id}/test-plan/approve:
+    post:
+      summary: Plan Approve
+      operationId: plan_approve_api_audit_runs__run_id__test_plan_approve_post
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/audit-runs/{run_id}/results/{result_id}/review:
+    post:
+      summary: Review Result
+      operationId: review_result_api_audit_runs__run_id__results__result_id__review_post
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      - name: result_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Result Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/audit-runs/{run_id}/findings/generate:
+    post:
+      summary: Finding Generate
+      operationId: finding_generate_api_audit_runs__run_id__findings_generate_post
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/findings/{finding_id}/review:
+    post:
+      summary: Finding Review
+      operationId: finding_review_api_findings__finding_id__review_post
+      parameters:
+      - name: finding_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Finding Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/audit-runs/{run_id}/report/generate:
+    post:
+      summary: Report Generate
+      operationId: report_generate_api_audit_runs__run_id__report_generate_post
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/audit-runs/{run_id}/report/approve:
+    post:
+      summary: Report Approve
+      operationId: report_approve_api_audit_runs__run_id__report_approve_post
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/reports/{report_id}/finalize:
+    post:
+      summary: Finalize
+      operationId: finalize_api_reports__report_id__finalize_post
+      parameters:
+      - name: report_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Report Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/audit-runs/{run_id}/evaluation:
+    get:
+      summary: Evaluation
+      operationId: evaluation_api_audit_runs__run_id__evaluation_get
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/audit-runs/{run_id}/events:
+    get:
+      summary: Events
+      operationId: events_api_audit_runs__run_id__events_get
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    AuditRunCreate:
+      properties:
+        policy_snapshot_id:
+          type: string
+          title: Policy Snapshot Id
+        dataset_snapshot_id:
+          type: string
+          title: Dataset Snapshot Id
+        authority_snapshot_id:
+          type: string
+          title: Authority Snapshot Id
+        audit_name:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Audit Name
+      type: object
+      required:
+      - policy_snapshot_id
+      - dataset_snapshot_id
+      - authority_snapshot_id
+      - audit_name
+      title: AuditRunCreate
+    Body_import_authorities_api_import_authorities_post:
+      properties:
+        file:
+          type: string
+          contentMediaType: application/octet-stream
+          title: File
+        authority_id:
+          type: string
+          title: Authority Id
+      type: object
+      required:
+      - file
+      - authority_id
+      title: Body_import_authorities_api_import_authorities_post
+    Body_import_loans_api_import_loans_post:
+      properties:
+        file:
+          type: string
+          contentMediaType: application/octet-stream
+          title: File
+        dataset_id:
+          type: string
+          title: Dataset Id
+      type: object
+      required:
+      - file
+      - dataset_id
+      title: Body_import_loans_api_import_loans_post
+    Body_import_policy_api_import_policies_post:
+      properties:
+        file:
+          type: string
+          contentMediaType: application/octet-stream
+          title: File
+        policy_id:
+          type: string
+          title: Policy Id
+        policy_set_id:
+          type: string
+          title: Policy Set Id
+        effective_from:
+          type: string
+          title: Effective From
+      type: object
+      required:
+      - file
+      - policy_id
+      - policy_set_id
+      - effective_from
+      title: Body_import_policy_api_import_policies_post
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

@@ -1,3 +1,5 @@
+> HISTORICAL OLLAMA/RENDER REFERENCE. Current version uses Gemini; follow README.md and the new Secrets template.
+
 # NEXUS — Project 07 trên GitHub
 
 Ứng dụng minh họa kiểm toán nội bộ tín dụng: LLM soạn RCM, kế hoạch, findings và báo cáo; Python kiểm tra dữ liệu; con người review và duyệt các bước. Giữ các chốt duyệt và tài liệu của bản v1.4.

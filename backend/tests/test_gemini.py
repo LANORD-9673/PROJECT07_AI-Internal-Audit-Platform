@@ -1,0 +1,89 @@
+"""Transport/validation tests with mocked HTTP; no live Gemini quality claims."""
+import json
+import urllib.error
+import pytest
+from fastapi import HTTPException
+from services import gemini
+
+
+class Response:
+    def __init__(self, data): self.data = data
+    def __enter__(self): return self
+    def __exit__(self, *args): pass
+    def read(self): return json.dumps(self.data).encode()
+
+
+def candidate(text='{"controls": []}', reason='STOP'):
+    return {'candidates': [{'finishReason': reason, 'content': {'parts': [{'text': text}]}}]}
+
+
+def test_gemini_header_schema_and_payload(monkeypatch):
+    monkeypatch.setenv('GEMINI_API_KEY', 'test-secret-never-live')
+    monkeypatch.setenv('PROJECT07_GEMINI_MODEL', 'models/gemini-3.8-flash')
+    def fake(req, timeout):
+        assert req.full_url.endswith('/gemini-3.8-flash:generateContent')
+        assert 'test-secret' not in req.full_url
+        assert req.get_header('X-goog-api-key') == 'test-secret-never-live'
+        body = json.loads(req.data)
+        assert 'untrusted data' in body['systemInstruction']['parts'][0]['text']
+        assert json.loads(body['contents'][0]['parts'][0]['text']) == {'policy_text': 'source'}
+        assert body['generationConfig']['responseMimeType'] == 'application/json'
+        assert body['generationConfig']['responseSchema']['required'] == ['controls']
+        return Response(candidate())
+    monkeypatch.setattr(gemini.urllib.request, 'urlopen', fake)
+    assert gemini.generate('LLM1_RCM', 'instruction', {'policy_text': 'source'}) == ({'controls': []}, 'gemini-3.8-flash')
+
+
+def test_missing_key_fails_before_network(monkeypatch):
+    monkeypatch.delenv('GEMINI_API_KEY', raising=False)
+    monkeypatch.setattr(gemini.urllib.request, 'urlopen', lambda *a, **k: pytest.fail('unexpected network'))
+    with pytest.raises(gemini.GeminiError, match='GEMINI_API_KEY'):
+        gemini.generate('LLM1_RCM', '', {})
+
+
+@pytest.mark.parametrize('status,code', [(400,'MODEL_REQUEST_ERROR'), (401,'MODEL_AUTH_ERROR'),
+    (403,'MODEL_AUTH_ERROR'), (404,'MODEL_NOT_FOUND'), (429,'MODEL_RATE_LIMIT'), (500,'MODEL_UNAVAILABLE')])
+def test_http_errors_are_safe(monkeypatch, status, code):
+    monkeypatch.setenv('GEMINI_API_KEY', 'do-not-leak-me')
+    def fake(req, timeout):
+        raise urllib.error.HTTPError(req.full_url, status, 'do-not-leak-me', {}, None)
+    monkeypatch.setattr(gemini.urllib.request, 'urlopen', fake)
+    with pytest.raises(gemini.GeminiError) as exc:
+        gemini.generate('LLM1_RCM', '', {})
+    assert exc.value.code == code
+    assert 'do-not-leak-me' not in str(exc.value)
+
+
+@pytest.mark.parametrize('response,code', [
+    ({'promptFeedback': {'blockReason': 'SAFETY'}}, 'MODEL_BLOCKED'),
+    ({'candidates': []}, 'MODEL_SCHEMA_ERROR'),
+    (candidate(reason='MAX_TOKENS'), 'MODEL_TRUNCATED'),
+    (candidate(reason='SAFETY'), 'MODEL_BLOCKED'),
+    (candidate('not JSON'), 'MODEL_SCHEMA_ERROR'),
+    (candidate('[]'), 'MODEL_SCHEMA_ERROR'),
+])
+def test_invalid_or_blocked_output_fails_closed(monkeypatch, response, code):
+    monkeypatch.setenv('GEMINI_API_KEY', 'fake')
+    monkeypatch.setattr(gemini.urllib.request, 'urlopen', lambda *a, **k: Response(response))
+    with pytest.raises(gemini.GeminiError) as exc:
+        gemini.generate('LLM1_RCM', '', {})
+    assert exc.value.code == code
+
+
+@pytest.mark.parametrize('task', ['LLM1_RCM','LLM2_PLAN','LLM3_FINDINGS','LLM4_REPORT'])
+def test_task_schema_valid(task):
+    schema = gemini.schema_for(task)
+    assert schema['type'] == 'OBJECT'
+    assert all(x in schema['properties'] for x in schema['required'])
+
+
+def test_workflow_missing_key_records_failed_call(client, monkeypatch):
+    from services import workflow
+    from models.db import connect
+    monkeypatch.delenv('GEMINI_API_KEY', raising=False)
+    with pytest.raises(HTTPException) as exc:
+        workflow.llm_generate('test-run', 'LLM1_RCM', '', {})
+    assert exc.value.status_code == 503
+    with connect() as c:
+        row = c.execute('SELECT task, status FROM llm_calls ORDER BY created_at DESC').fetchone()
+        assert row['task'] == 'LLM1_RCM' and row['status'] == 'ERROR'

@@ -1,11 +1,12 @@
-Streamlit preparation — 2026-10-14
-Python 3.12, Streamlit 1.65.0
+Project 07 v1.5 Gemini migration — 2026-10-15
 
-PASS: 48 backend tests, including workflow with mocked model and human gates.
-PASS: AppTest startup, demo import, Audit Run creation, navigation of all workflow pages.
-PASS: UI call to execute tests rejected by backend when approval configuration is absent.
-PASS: Streamlit config / secrets example TOML and devcontainer JSON parse.
+PASS: 67 backend tests (48 existing workflow/rule checks + 19 Gemini transport/config/error checks).
+PASS: Streamlit AppTest startup, demo import, run creation, page navigation and gate enforcement.
+Gemini tests use mocked HTTP; no live API key or call.
+Four LLM tasks call the Gemini Developer API with task-specific responseSchema.
+Grounding validations and human approval gates remain.
+API key sent in x-goog-api-key header; upstream errors are sanitized.
+No automatic retry or provider/model fallback.
 
-Not verified: Community Cloud deployment, GitHub CI, Windows launcher, live Ollama outputs, visual browser inspection.
-No repo pushed; no public URL created.
-AppTest has no live LLM calls. Mocked backend tests are not LLM quality evaluation.
+Not verified: live Gemini output quality/quota, Google project model access, Windows/PyCharm run, Community Cloud deployment or public GitHub push.
+NotebookLM / Gemini Notebook Enterprise API is not integrated; exact service and account requirements not resolved.

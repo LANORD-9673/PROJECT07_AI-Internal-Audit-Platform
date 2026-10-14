@@ -1,0 +1,1 @@
+Read HUONG_DAN_GIANG_VIEN.md for requirement mapping, LLM/Python/human roles and demo sequence. NHAT_KY_LLM_LAP_TRINH.md explains AI-assisted development separately from runtime LLM work. Complete LLM_EVALUATION_REVIEW.csv after live model runs.

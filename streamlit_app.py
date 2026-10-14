@@ -9,10 +9,9 @@ ROOT = Path(__file__).resolve().parent
 st.set_page_config(page_title='NEXUS | Project 07', page_icon='🏦', layout='wide')
 
 # Deployment settings are controlled by the app owner, never by visitors.
-KEYS = ('PROJECT07_OLLAMA_URL', 'PROJECT07_OLLAMA_MODEL', 'PROJECT07_OLLAMA_TOKEN',
-        'PROJECT07_OLLAMA_TIMEOUT', 'PROJECT07_APPROVED_BASELINE_SHA256',
-        'PROJECT07_APPROVED_AUTHORITY_SHA256', 'PROJECT07_AUTHORITY_APPROVAL_REFERENCE',
-        'PROJECT07_DB_PATH')
+KEYS = ('GEMINI_API_KEY', 'PROJECT07_GEMINI_MODEL', 'PROJECT07_GEMINI_TIMEOUT',
+        'PROJECT07_APPROVED_BASELINE_SHA256', 'PROJECT07_APPROVED_AUTHORITY_SHA256',
+        'PROJECT07_AUTHORITY_APPROVAL_REFERENCE', 'PROJECT07_DB_PATH')
 try:
     for key in KEYS:
         if key in st.secrets:
@@ -109,10 +108,10 @@ if page == 'Vai trò & cấu hình':
     ], columns=['Bước', 'LLM / Python', 'Con người']), hide_index=True, width='stretch')
     st.info('Streamlit chạy giao diện Python và backend trong cùng ứng dụng. Không cần deploy FastAPI riêng hoặc build React.')
     st.markdown('**Trạng thái cấu hình**')
-    url = os.environ.get('PROJECT07_OLLAMA_URL', '')
-    st.write('LLM endpoint: ' + ('đã cấu hình' if url else 'chưa cấu hình remote; dùng localhost mặc định'))
-    st.write('Model: ' + os.environ.get('PROJECT07_OLLAMA_MODEL', 'qwen3:4b'))
-    st.caption('Trạng thái trên chỉ kiểm tra cấu hình, chưa chứng minh kết nối hoặc chất lượng model.')
+    st.write('Provider: **Gemini API — Google AI Studio**')
+    st.write('API key: ' + ('đã cấu hình' if os.environ.get('GEMINI_API_KEY', '').strip() else 'chưa cấu hình GEMINI_API_KEY'))
+    st.write('Model: ' + os.environ.get('PROJECT07_GEMINI_MODEL', 'gemini-3.8-flash'))
+    st.caption('Chỉ kiểm tra cấu hình; chưa chứng minh kết nối hoặc chất lượng model. API key không hiển thị trên giao diện.')
     pins = all(os.environ.get(x, '').strip() for x in ('PROJECT07_APPROVED_BASELINE_SHA256', 'PROJECT07_APPROVED_AUTHORITY_SHA256', 'PROJECT07_AUTHORITY_APPROVAL_REFERENCE'))
     st.write('Hồ sơ phê duyệt baseline: ' + ('đã cấu hình — backend vẫn đối chiếu hash khi chạy' if pins else 'chưa đủ; Tests sẽ bị chặn'))
     with st.expander('SHA256 của bộ demo để chủ ứng dụng đối chiếu'):
@@ -120,7 +119,7 @@ if page == 'Vai trò & cấu hình':
             st.text(name)
             st.code(hashlib.sha256((ROOT / 'demo' / name).read_bytes()).hexdigest())
         st.caption('Hash không thay cho phê duyệt. Chỉ cấu hình Secrets sau khi con người đã rà soát đúng bộ tài liệu.')
-    st.warning('Ollama trên laptop không tự kết nối với Streamlit Cloud. Chủ app phải cấu hình endpoint model mà cloud truy cập được. Không có kết quả AI giả để thay thế khi model lỗi.')
+    st.info('Nhập GEMINI_API_KEY trong Streamlit Secrets hoặc biến môi trường ở PyCharm. Không cần Ollama chạy trên laptop. Model lỗi sẽ dừng bước tương ứng; không thay thế bằng kết quả giả.')
 
 elif page == 'Dữ liệu & Audit Run':
     st.subheader('1. Import dữ liệu và tạo Audit Run')

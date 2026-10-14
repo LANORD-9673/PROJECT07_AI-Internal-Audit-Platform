@@ -28,25 +28,47 @@ git push -u origin main
 
 Repo đã có code thì dùng clone + branch + PR; không force-push. Đưa cả thư mục ẩn `.github`, `.devcontainer`, `.streamlit` lên Git. File `.streamlit/secrets.toml` giữ riêng, gitignore đã chặn.
 
-## Cấu hình Secrets
+## Cấu hình Gemini API từ Google AI Studio
 
-Mẫu ở `.streamlit/secrets.example.toml`. Cloud: nhập Advanced settings → Secrets. Local: tạo `.streamlit/secrets.toml` tại thư mục gốc và điền giá trị thật.
+1. Vào https://aistudio.google.com/apikey để tạo API key của project bạn có quyền sử dụng.
+2. Trên Streamlit Cloud, mở Settings → Secrets và nhập:
 
 ```toml
-PROJECT07_OLLAMA_URL = "https://YOUR-OLLAMA-SERVER"
-PROJECT07_OLLAMA_MODEL = "qwen3:4b"
-PROJECT07_OLLAMA_TIMEOUT = "180"
-PROJECT07_OLLAMA_TOKEN = ""
+GEMINI_API_KEY = "DAN_KEY_THAT_VAO_SECRETS"
+PROJECT07_GEMINI_MODEL = "gemini-3.8-flash"
+PROJECT07_GEMINI_TIMEOUT = "180"
 PROJECT07_APPROVED_BASELINE_SHA256 = ""
 PROJECT07_APPROVED_AUTHORITY_SHA256 = ""
 PROJECT07_AUTHORITY_APPROVAL_REFERENCE = ""
 ```
 
-- **Ollama:** URL phải là base URL mà Streamlit Cloud truy cập được, không thêm `/api/chat`. API phải đúng định dạng Ollama và có model đúng tên; endpoint OpenAI-compatible không dùng trực tiếp với adapter này. `localhost` trên cloud không trỏ về laptop. Máy nhóm, model và kết nối cần hoạt động nếu dùng Ollama trên máy nhóm. Token tùy chọn là bearer token mà reverse proxy của nhóm chấp nhận. Không mở Ollama không xác thực ra Internet. Gói không tự cài model hoặc tạo server Ollama.
-- **Phê duyệt baseline:** con người đối chiếu policy và authority trước khi điền hash/mã phê duyệt. Màn hình “Vai trò & cấu hình” hiển thị hash file demo để đối chiếu. Tính hash không phải phê duyệt; backend vẫn yêu cầu khớp snapshot của run. Mẫu rỗng chưa đủ chạy tests. Không điền hash của file chưa review chỉ để vượt chốt. Mã phê duyệt giả lập nằm trong policy demo; nhóm vẫn cần hoàn tất kiểm tra dữ liệu/phạm vi theo tài liệu.
-- Streamlit luôn bật human gates. Mọi bước duyệt RCM/Plan, xác minh exceptions và review findings vẫn được kiểm tra ở backend.
+Key chỉ nhập trong Secrets, không đưa vào GitHub hoặc chat. Mẫu ở `.streamlit/secrets.example.toml`. Model mặc định là Gemini 3.8 Flash; nếu project không truy cập được, chọn model có quyền sử dụng và hỗ trợ generateContent + structured JSON rồi sửa `PROJECT07_GEMINI_MODEL`. Không tự chuyển model khi quota hoặc model lỗi. Model IDs/lifecycle và quota có thể thay đổi: kiểm tra AI Studio khi triển khai.
 
-Chưa cấu hình model thì UI/import chạy được, bốn tác vụ LLM không chạy được. Không tự thay thế kết quả AI bằng dữ liệu giả. Muốn dùng nhà cung cấp LLM API khác cần thêm adapter theo API được nhóm chọn.
+Cả 4 tác vụ dùng Gemini Developer API `generateContent`, gửi JSON schema tương ứng và vẫn kiểm tra policy quote, test coverage, evidence linkage và human gates tại backend. Không cần Ollama, server trên laptop hoặc Google SDK mới. REST adapter dùng thư viện Python chuẩn; requirements đã có đủ dependencies. Chưa kiểm tra bằng key thật của nhóm.
+
+**Phê duyệt baseline:** con người vẫn cần đối chiếu policy và authority trước khi điền hash/mã phê duyệt. Màn hình Vai trò & cấu hình hiển thị hash file demo để đối chiếu. Tính hash không phải phê duyệt. Các biến phê duyệt rỗng sẽ làm Python tests bị chặn; không tự điền hash chỉ để vượt chốt. Streamlit luôn bật human gates.
+
+## PyCharm / local Windows
+
+Dùng Python 3.12. Trong Terminal tại thư mục gốc, cài `python -m pip install -r requirements.txt`. Tạo `.streamlit/secrets.toml` bằng mẫu rồi chạy `python -m streamlit run streamlit_app.py`. PyCharm Run Configuration cũng có thể đặt biến môi trường `GEMINI_API_KEY`, `PROJECT07_GEMINI_MODEL`, `PROJECT07_GEMINI_TIMEOUT`. App không tự đọc `.env`; `.env.example` chỉ là mẫu tên biến. Không dùng Run Python thông thường để thay cho lệnh Streamlit.
+
+## NotebookLM / Gemini Notebook Enterprise
+
+Gemini API của AI Studio không phải API notebook. Người dùng chưa xác định cụ thể dịch vụ notebook nào, nên bản này chỉ tích hợp Gemini API. Không tự tạo hoặc đọc notebook của tài khoản Google.
+
+Nếu ý là NotebookLM tại https://notebooklm.google.com, có thể dùng như công cụ để con người đọc/đối chiếu policy riêng. Output NotebookLM chưa review không tự trở thành policy nguồn hoặc approval của app.
+
+Google công bố API quản lý notebook/sources của Gemini Notebook Enterprise. Cần Google Cloud project, service/API được bật, IAM và license theo tài liệu; không thể dùng API key AI Studio để mặc định nối dịch vụ này. Tài liệu API được kiểm tra: https://docs.cloud.google.com/gemini/enterprise/notebooklm-enterprise/docs/api-notebooks . Chưa triển khai adapter enterprise hoặc giả định có endpoint chat phù hợp 4 tác vụ. Cần xác định đúng dịch vụ và thao tác muốn thực hiện trước khi viết phần này.
+
+## Lỗi Gemini thường gặp
+
+- `MODEL_CONFIGURATION_ERROR`: thiếu API key hoặc model/timeout cấu hình sai.
+- `MODEL_AUTH_ERROR`: key không hợp lệ hoặc project chưa có quyền.
+- `MODEL_NOT_FOUND`: model không khả dụng cho project.
+- `MODEL_RATE_LIMIT`: quota/rate limit; kiểm tra AI Studio trước khi thử lại. Không tự retry hàng loạt.
+- `MODEL_BLOCKED`, `MODEL_TRUNCATED`, `MODEL_SCHEMA_ERROR`: model chưa tạo JSON phù hợp; bước đó dừng, con người cần kiểm tra phạm vi/nguồn.
+
+Không ghi key vào URL hoặc log. App vẫn dùng chung database và chưa có xác thực người dùng. Khi công khai app, người truy cập có thể kích hoạt lời gọi dùng quota/key của chủ app; kiểm soát quyền truy cập của deployment và quota/billing trong AI Studio phù hợp nhu cầu demo. Chỉ đưa dữ liệu giả lập vào app; policy/data liên quan từng tác vụ được gửi tới Google khi gọi Gemini.
 
 ## Demo với giảng viên
 
@@ -73,11 +95,11 @@ Codespaces: Code → Codespaces → Create codespace on main; chờ dependencies
 
 ## Kiểm tra và giới hạn
 
-GitHub Actions chạy `python -m pytest backend/tests -q` và `python scripts/check_streamlit.py`. AppTest không gọi model thật. Xem `STREAMLIT_TEST_REPORT.txt` để biết phần đã kiểm tra.
+GitHub Actions chạy `python -m pytest backend/tests -q` và `python scripts/check_streamlit.py`. AppTest không gọi model thật. Tests transport Gemini dùng HTTP mô phỏng. Xem `STREAMLIT_TEST_REPORT.txt` để biết phần đã kiểm tra.
 
 Demo dùng chung SQLite, chưa xác thực người duyệt hoặc tách dữ liệu theo người dùng. Người truy cập có thể xem/thao tác các run trong cùng instance; chỉ dùng dữ liệu giả lập. Không dựa vào SQLite local để lưu bền vững trên cloud: tải JSON giữ kết quả demo; nếu cần lưu lâu dài, cần database ngoài và adapter phù hợp.
 
-Chưa có link công khai được tạo chỉ từ gói mã này; phải deploy qua tài khoản GitHub và Streamlit của nhóm. Tài liệu nghiệp vụ/nhật ký AI viết code nằm trong `docs`. `README_GITHUB_RENDER_REFERENCE.md` và launcher React/FastAPI là phương án trước, không dùng khi deploy Streamlit.
+Chưa có link công khai được tạo chỉ từ gói mã này; phải deploy qua tài khoản GitHub và Streamlit của nhóm. Tài liệu nghiệp vụ/nhật ký AI viết code nằm trong `docs`. `README_GITHUB_RENDER_REFERENCE.md (lịch sử phương án Ollama)` và launcher React/FastAPI là phương án trước, không dùng khi deploy Streamlit.
 
 ## Tài liệu chính thức
 
@@ -85,3 +107,7 @@ Chưa có link công khai được tạo chỉ từ gói mã này; phải deploy
 - Dependencies: https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/app-dependencies
 - Secrets: https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/secrets-management
 - Chia sẻ: https://docs.streamlit.io/deploy/streamlit-community-cloud/share-your-app
+
+Gemini API docs: https://ai.google.dev/api/generate-content
+Gemini keys: https://ai.google.dev/gemini-api/docs/api-key
+Model lifecycle: https://ai.google.dev/gemini-api/docs/deprecations
