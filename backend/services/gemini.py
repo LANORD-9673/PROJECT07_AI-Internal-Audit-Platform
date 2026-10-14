@@ -4,6 +4,7 @@ import os
 import re
 import urllib.error
 import urllib.request
+import urllib.parse
 
 
 class GeminiError(Exception):
@@ -12,8 +13,22 @@ class GeminiError(Exception):
         self.code, self.message, self.status = code, message, status
 
 
+def sanitized_message(message):
+    """Retain Google's diagnostic text while removing the configured key and key-like values."""
+    text = str(message)
+    key = os.environ.get('GEMINI_API_KEY', '').strip()
+    if key:
+        for value in {key, urllib.parse.quote(key, safe=''), urllib.parse.quote_plus(key)}:
+            text = text.replace(value, '[REDACTED]')
+    text = re.sub(r'AIza[A-Za-z0-9_-]{20,}', '[REDACTED]', text)
+    text = re.sub(r'(?i)([?&](?:key|api_key|access_token)=)[^\s&]+', r'\1[REDACTED]', text)
+    text = re.sub(r'(?i)(Bearer\s+)[A-Za-z0-9._~+/-]+', r'\1[REDACTED]', text)
+    return ' '.join(text.split())[:1200]
+
+
 def http_error(exc):
-    """Translate allowlisted Google error reasons; never expose raw error payloads."""
+    """Translate known reasons, otherwise show redacted Google message, never raw headers/body."""
+    google_message = ''
     reasons = {
         'API_KEY_INVALID': ('MODEL_AUTH_ERROR', 'API key không hợp lệ. Tạo key Gemini trong Google AI Studio và cập nhật Secrets.'),
         'API_KEY_EXPIRED': ('MODEL_AUTH_ERROR', 'API key đã hết hiệu lực. Cập nhật key mới trong Secrets.'),
@@ -28,7 +43,8 @@ def http_error(exc):
         body = json.loads(exc.read(65536).decode())
         error = body.get('error', {}) if isinstance(body, dict) else {}
         if not isinstance(error, dict): error = {}
-        message = str(error.get('message', '')).lower()
+        google_message = sanitized_message(error.get('message', ''))
+        message = google_message.lower()
         if 'leaked' in message:
             return GeminiError('MODEL_AUTH_ERROR', 'Google báo key đã bị lộ và chặn. Tạo key mới trong AI Studio, cập nhật Secrets và thu hồi key bị lộ.', 503)
         details = error.get('details', [])
@@ -47,6 +63,8 @@ def http_error(exc):
         429: ('MODEL_RATE_LIMIT', 'Gemini quota/rate limit reached. Check AI Studio quota before retrying.'),
     }
     code, message = defaults.get(exc.code, ('MODEL_UNAVAILABLE', 'Gemini service request failed.'))
+    if google_message:
+        message = f'HTTP {exc.code} — Google: {google_message}'
     return GeminiError(code, message, 503)
 
 
