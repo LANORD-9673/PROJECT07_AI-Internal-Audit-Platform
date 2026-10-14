@@ -1,0 +1,11 @@
+Streamlit preparation — 2026-10-14
+Python 3.12, Streamlit 1.65.0
+
+PASS: 48 backend tests, including workflow with mocked model and human gates.
+PASS: AppTest startup, demo import, Audit Run creation, navigation of all workflow pages.
+PASS: UI call to execute tests rejected by backend when approval configuration is absent.
+PASS: Streamlit config / secrets example TOML and devcontainer JSON parse.
+
+Not verified: Community Cloud deployment, GitHub CI, Windows launcher, live Ollama outputs, visual browser inspection.
+No repo pushed; no public URL created.
+AppTest has no live LLM calls. Mocked backend tests are not LLM quality evaluation.

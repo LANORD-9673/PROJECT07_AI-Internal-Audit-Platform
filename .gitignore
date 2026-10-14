@@ -1,0 +1,14 @@
+backend/.venv/
+backend/project07.sqlite3
+frontend/node_modules/
+frontend/dist/
+__pycache__/
+.pytest_cache/
+*.pyc
+.env
+**/.env.*
+!.env.example
+*.sqlite*
+*.log
+.streamlit/secrets.toml
+.venv/
