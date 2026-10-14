@@ -9,6 +9,14 @@ from services.evaluation import benchmark
 
 router=APIRouter()
 
+@router.post('/api/llm/check')
+def check_gemini_access(request: Request):
+ from services.gemini import check_access, GeminiError
+ try:
+  return wrap(request,check_access())
+ except GeminiError as exc:
+  fail(exc.code,exc.message,exc.status)
+
 SCHEMA='''
 CREATE TABLE IF NOT EXISTS workflow_docs (
  id TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES audit_runs(run_id),

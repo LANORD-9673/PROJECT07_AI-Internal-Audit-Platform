@@ -112,6 +112,16 @@ if page == 'Vai trò & cấu hình':
     st.write('API key: ' + ('đã cấu hình' if os.environ.get('GEMINI_API_KEY', '').strip() else 'chưa cấu hình GEMINI_API_KEY'))
     st.write('Model: ' + os.environ.get('PROJECT07_GEMINI_MODEL', 'gemini-3.8-flash'))
     st.caption('Chỉ kiểm tra cấu hình; chưa chứng minh kết nối hoặc chất lượng model. API key không hiển thị trên giao diện.')
+    if st.button('Kiểm tra key và danh sách model', key='gemini_check'):
+        try:
+            with st.spinner('Đang đọc metadata model từ Google…'):
+                checked = mutate('/llm/check')
+            st.success('Google chấp nhận truy cập danh sách model. Chưa kiểm chứng việc tạo nội dung.')
+            if not checked['configured_model_listed']:
+                st.warning('Model đang cấu hình chưa có trong danh sách trả về. Chọn model hỗ trợ generateContent từ danh sách dưới và cập nhật Secrets.')
+            st.json(checked)
+        except ApiError as exc:
+            st.error(str(exc))
     pins = all(os.environ.get(x, '').strip() for x in ('PROJECT07_APPROVED_BASELINE_SHA256', 'PROJECT07_APPROVED_AUTHORITY_SHA256', 'PROJECT07_AUTHORITY_APPROVAL_REFERENCE'))
     st.write('Hồ sơ phê duyệt baseline: ' + ('đã cấu hình — backend vẫn đối chiếu hash khi chạy' if pins else 'chưa đủ; Tests sẽ bị chặn'))
     with st.expander('SHA256 của bộ demo để chủ ứng dụng đối chiếu'):

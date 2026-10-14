@@ -12,6 +12,73 @@ class GeminiError(Exception):
         self.code, self.message, self.status = code, message, status
 
 
+def http_error(exc):
+    """Translate allowlisted Google error reasons; never expose raw error payloads."""
+    reasons = {
+        'API_KEY_INVALID': ('MODEL_AUTH_ERROR', 'API key không hợp lệ. Tạo key Gemini trong Google AI Studio và cập nhật Secrets.'),
+        'API_KEY_EXPIRED': ('MODEL_AUTH_ERROR', 'API key đã hết hiệu lực. Cập nhật key mới trong Secrets.'),
+        'API_KEY_SERVICE_BLOCKED': ('MODEL_AUTH_ERROR', 'Key bị giới hạn sang dịch vụ khác. Kiểm tra quyền dùng Gemini API trong AI Studio.'),
+        'API_KEY_HTTP_REFERRER_BLOCKED': ('MODEL_AUTH_ERROR', 'Key đang giới hạn theo website/referrer; lời gọi từ server Streamlit không đáp ứng giới hạn đó. Cấu hình key cho backend.'),
+        'API_KEY_IP_ADDRESS_BLOCKED': ('MODEL_AUTH_ERROR', 'IP của server Streamlit không được phép dùng key. Kiểm tra giới hạn IP của key.'),
+        'SERVICE_DISABLED': ('MODEL_AUTH_ERROR', 'Gemini/Generative Language API chưa được bật hoặc bị tắt trong project chứa key. Kiểm tra đúng project trên Google Cloud.'),
+        'BILLING_DISABLED': ('MODEL_AUTH_ERROR', 'Google báo billing của project chưa sẵn sàng. Kiểm tra trạng thái và yêu cầu sử dụng trong AI Studio.'),
+        'CONSUMER_INVALID': ('MODEL_AUTH_ERROR', 'Google không chấp nhận project của key. Kiểm tra project và quyền truy cập Gemini.'),
+    }
+    try:
+        body = json.loads(exc.read(65536).decode())
+        error = body.get('error', {}) if isinstance(body, dict) else {}
+        if not isinstance(error, dict): error = {}
+        message = str(error.get('message', '')).lower()
+        if 'leaked' in message:
+            return GeminiError('MODEL_AUTH_ERROR', 'Google báo key đã bị lộ và chặn. Tạo key mới trong AI Studio, cập nhật Secrets và thu hồi key bị lộ.', 503)
+        details = error.get('details', [])
+        if isinstance(details, list):
+            for detail in details:
+                if isinstance(detail, dict) and detail.get('reason') in reasons:
+                    code, safe_message = reasons[detail['reason']]
+                    return GeminiError(code, safe_message, 503)
+    except (ValueError, TypeError, AttributeError, OSError):
+        pass
+    defaults = {
+        400: ('MODEL_REQUEST_ERROR', 'Gemini rejected the request; check model/API compatibility.'),
+        401: ('MODEL_AUTH_ERROR', 'Gemini API key is invalid or unauthorized.'),
+        403: ('MODEL_AUTH_ERROR', 'HTTP 403: Google từ chối quyền truy cập. Kiểm tra key/project và giới hạn API trong AI Studio; chưa có reason cụ thể từ Google.'),
+        404: ('MODEL_NOT_FOUND', 'Gemini model is unavailable for this project; select an accessible model.'),
+        429: ('MODEL_RATE_LIMIT', 'Gemini quota/rate limit reached. Check AI Studio quota before retrying.'),
+    }
+    code, message = defaults.get(exc.code, ('MODEL_UNAVAILABLE', 'Gemini service request failed.'))
+    return GeminiError(code, message, 503)
+
+
+def check_access():
+    """Read model metadata only; this does not prove successful content generation."""
+    key = os.environ.get('GEMINI_API_KEY', '').strip()
+    if not key:
+        raise GeminiError('MODEL_CONFIGURATION_ERROR', 'Chưa có GEMINI_API_KEY trong Streamlit Secrets.', 503)
+    req = urllib.request.Request('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000',
+                                 headers={'x-goog-api-key': key}, method='GET')
+    try:
+        with urllib.request.urlopen(req, timeout=30) as response:
+            data = json.loads(response.read().decode())
+    except urllib.error.HTTPError as exc:
+        raise http_error(exc)
+    except (urllib.error.URLError, TimeoutError, OSError):
+        raise GeminiError('MODEL_UNAVAILABLE', 'Không kết nối được Google để kiểm tra model.', 503)
+    except (ValueError, UnicodeDecodeError):
+        raise GeminiError('MODEL_SCHEMA_ERROR', 'Google trả metadata không hợp lệ.', 422)
+    if not isinstance(data, dict) or not isinstance(data.get('models'), list):
+        raise GeminiError('MODEL_SCHEMA_ERROR', 'Google trả metadata không hợp lệ.', 422)
+    models = [m['name'].removeprefix('models/') for m in data['models']
+              if isinstance(m, dict) and isinstance(m.get('name'), str)
+              and re.fullmatch(r'models/[A-Za-z0-9][A-Za-z0-9._-]*', m['name'])
+              and 'generateContent' in (m.get('supportedGenerationMethods') or [])]
+    selected = os.environ.get('PROJECT07_GEMINI_MODEL', 'gemini-3.8-flash').strip().removeprefix('models/')
+    return {'metadata_access': 'OK', 'configured_model': selected,
+            'configured_model_listed': selected in models, 'generate_content_models': models,
+            'list_has_more_pages': bool(data.get('nextPageToken')),
+            'note': 'Google đã cho phép đọc danh sách model. Chưa kiểm chứng generateContent, quota tạo nội dung hoặc chất lượng đầu ra.'}
+
+
 def item_schema(strings, arrays=()):
     properties = {k: {'type': 'STRING'} for k in strings}
     properties.update({k: {'type': 'ARRAY', 'items': {'type': 'STRING'}} for k in arrays})
@@ -52,7 +119,7 @@ def generate(task, system, payload):
     body = {
         'systemInstruction': {'parts': [{'text': instruction}]},
         'contents': [{'role': 'user', 'parts': [{'text': json.dumps(payload, ensure_ascii=False)}]}],
-        'generationConfig': {'temperature': 0, 'maxOutputTokens': 16384,
+        'generationConfig': {'maxOutputTokens': 16384,
                              'responseMimeType': 'application/json', 'responseSchema': schema_for(task)},
     }
     url = f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
@@ -62,16 +129,7 @@ def generate(task, system, payload):
         with urllib.request.urlopen(req, timeout=timeout) as response:
             raw = json.loads(response.read().decode())
     except urllib.error.HTTPError as exc:
-        # Never return upstream body, URL query, request headers or secret-bearing exception text.
-        codes = {
-            400: ('MODEL_REQUEST_ERROR', 'Gemini rejected the request; check model/API compatibility.'),
-            401: ('MODEL_AUTH_ERROR', 'Gemini API key is invalid or unauthorized.'),
-            403: ('MODEL_AUTH_ERROR', 'Gemini access denied; check key, project permissions and service availability.'),
-            404: ('MODEL_NOT_FOUND', 'Gemini model is unavailable for this project; select an accessible model.'),
-            429: ('MODEL_RATE_LIMIT', 'Gemini quota/rate limit reached. Check AI Studio quota before retrying.'),
-        }
-        code, message = codes.get(exc.code, ('MODEL_UNAVAILABLE', 'Gemini service request failed.'))
-        raise GeminiError(code, message, 503)
+        raise http_error(exc)
     except (urllib.error.URLError, TimeoutError, OSError):
         raise GeminiError('MODEL_UNAVAILABLE', 'Gemini could not be reached or timed out.', 503)
     except (json.JSONDecodeError, UnicodeDecodeError):

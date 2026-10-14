@@ -1,5 +1,6 @@
 """Transport/validation tests with mocked HTTP; no live Gemini quality claims."""
 import json
+import io
 import urllib.error
 import pytest
 from fastapi import HTTPException
@@ -87,3 +88,43 @@ def test_workflow_missing_key_records_failed_call(client, monkeypatch):
     with connect() as c:
         row = c.execute('SELECT task, status FROM llm_calls ORDER BY created_at DESC').fetchone()
         assert row['task'] == 'LLM1_RCM' and row['status'] == 'ERROR'
+
+
+@pytest.mark.parametrize('reason', ['API_KEY_INVALID','API_KEY_SERVICE_BLOCKED',
+    'API_KEY_HTTP_REFERRER_BLOCKED','API_KEY_IP_ADDRESS_BLOCKED','SERVICE_DISABLED','BILLING_DISABLED'])
+def test_google_reason_safe_translation(reason):
+    body = {'error': {'message': 'secret-should-not-be-shown', 'details': [{'reason': reason, 'metadata': {'key': 'secret-should-not-be-shown'}}]}}
+    exc = urllib.error.HTTPError('https://example.test', 403, 'Forbidden', {}, io.BytesIO(json.dumps(body).encode()))
+    result = gemini.http_error(exc)
+    assert result.code == 'MODEL_AUTH_ERROR'
+    assert 'secret-should-not-be-shown' not in str(result)
+    assert 'chưa có reason' not in str(result)
+
+
+def test_leaked_key_safe_translation():
+    body = {'error': {'message': 'key secret-value was reported as leaked'}}
+    result = gemini.http_error(urllib.error.HTTPError('https://example.test', 403, 'Forbidden', {}, io.BytesIO(json.dumps(body).encode())))
+    assert 'bị lộ' in str(result)
+    assert 'secret-value' not in str(result)
+
+
+def test_model_metadata_check(monkeypatch):
+    monkeypatch.setenv('GEMINI_API_KEY', 'test-only')
+    monkeypatch.setenv('PROJECT07_GEMINI_MODEL', 'gemini-test')
+    def fake(req, timeout):
+        assert req.get_method() == 'GET' and req.data is None
+        assert req.get_header('X-goog-api-key') == 'test-only'
+        return Response({'models': [{'name': 'models/gemini-test', 'supportedGenerationMethods': ['generateContent']},
+                                   {'name': 'models/embed-test', 'supportedGenerationMethods': ['embedContent']}]})
+    monkeypatch.setattr(gemini.urllib.request, 'urlopen', fake)
+    result = gemini.check_access()
+    assert result['metadata_access'] == 'OK'
+    assert result['configured_model_listed'] is True
+    assert result['generate_content_models'] == ['gemini-test']
+
+
+def test_diagnostic_endpoint_missing_key(client, monkeypatch):
+    monkeypatch.delenv('GEMINI_API_KEY', raising=False)
+    response = client.post('/api/llm/check')
+    assert response.status_code == 503
+    assert response.json()['errors'][0]['code'] == 'MODEL_CONFIGURATION_ERROR'
