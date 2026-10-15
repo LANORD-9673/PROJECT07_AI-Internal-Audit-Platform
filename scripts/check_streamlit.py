@@ -12,17 +12,22 @@ with tempfile.TemporaryDirectory() as tmp:
     os.environ['PROJECT07_DB_PATH'] = str(Path(tmp) / 'ui.sqlite')
     app = AppTest.from_file(str(root / 'streamlit_app.py'), default_timeout=30).run()
     assert not app.exception, app.exception
-    assert 'NEXUS' in app.title[0].value
-    app.sidebar.radio[0].set_value('Dữ liệu & Audit Run').run()
+    assert any('NEXUS' in x.value for x in app.markdown)
+    app.sidebar.toggle[0].set_value(False).run()
+    assert not app.exception
+    next(b for b in app.button if b.key == 'nav_Bảo vệ dữ liệu').click().run()
+    assert app.session_state['nx_page'] == 'Bảo vệ dữ liệu'
+    app.sidebar.toggle[0].set_value(True).run()
+    app.sidebar.selectbox[0].set_value('Dữ liệu & Audit Run').run()
     next(b for b in app.button if b.label == 'Import bộ demo 60 khoản vay').click().run()
     assert not app.exception, app.exception
     next(b for b in app.button if b.label == 'Tạo Audit Run').click().run()
     assert not app.exception, app.exception
-    assert len(app.sidebar.selectbox[0].options) == 1
+    assert len(app.sidebar.selectbox[1].options) == 1
     for page in ('Bảo vệ dữ liệu', 'RCM', 'Test Plan', 'Tests & Exceptions', 'Findings', 'Report', 'Evaluation'):
-        app.sidebar.radio[0].set_value(page).run()
+        app.sidebar.selectbox[0].set_value(page).run()
         assert not app.exception, (page, app.exception)
-    app.sidebar.radio[0].set_value('Tests & Exceptions').run()
+    app.sidebar.selectbox[0].set_value('Tests & Exceptions').run()
     next(b for b in app.button if b.label == 'Chạy T01–T03 bằng Python').click().run()
     assert not app.exception, app.exception
     assert app.error and 'REVIEW_REQUIRED' in app.error[0].value
@@ -32,7 +37,7 @@ with tempfile.TemporaryDirectory() as tmp:
     uploaded = io.BytesIO(b'full_name,amount_vnd,note\nSecret Person,100000,private free text\n')
     uploaded.name = 'customer.csv'
     with patch('streamlit.file_uploader', return_value=uploaded):
-        app.sidebar.radio[0].set_value('Bảo vệ dữ liệu').run()
+        app.sidebar.selectbox[0].set_value('Bảo vệ dữ liệu').run()
         assert not app.exception, app.exception
         assert list((Path(tmp) / 'private-vault' / 'keys').glob('*.key.enc'))
         next(b for b in app.button if b.label == 'Duyệt và xuất bản mã giả').click().run()

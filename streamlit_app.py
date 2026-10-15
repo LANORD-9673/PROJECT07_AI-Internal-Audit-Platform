@@ -6,7 +6,7 @@ import pandas as pd
 import streamlit as st
 
 ROOT = Path(__file__).resolve().parent
-st.set_page_config(page_title='NEXUS | Project 07', page_icon='🏦', layout='wide')
+st.set_page_config(page_title='NEXUS | Project 07', page_icon=str(ROOT / 'assets/nexus-logo.png'), layout='wide')
 
 # Deployment settings are controlled by the app owner, never by visitors.
 KEYS = ('GEMINI_API_KEY', 'PROJECT07_GEMINI_MODEL', 'PROJECT07_GEMINI_TIMEOUT',
@@ -22,9 +22,10 @@ except FileNotFoundError:
 os.environ['PROJECT07_REQUIRE_GATES'] = '1'
 
 from streamlit_runtime import initialize, request, ApiError
+from nexus_ui import shell, home, loading
 
 
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def setup_backend():
     initialize()
     return True
@@ -38,14 +39,14 @@ def api(path):
 
 
 def mutate(path, payload=None, **kwargs):
-    return request('POST', path, json=payload, **kwargs) if payload is not None else request('POST', path, **kwargs)
+    with loading():
+        return request('POST', path, json=payload, **kwargs) if payload is not None else request('POST', path, **kwargs)
 
 
 def action(label, path, payload=None, disabled=False, key=None):
     if st.button(label, disabled=disabled, key=key or path, type='primary'):
         try:
-            with st.spinner('Đang xử lý…'):
-                mutate(path, payload)
+            mutate(path, payload)
             st.session_state['notice'] = 'Thao tác hoàn tất. Kết quả đã được lưu vào audit trail.'
             st.rerun()
         except ApiError as exc:
@@ -79,13 +80,10 @@ def review_form(title, path, key, extra=None, decision_key=None, disabled=False)
                 st.error(str(exc))
 
 
-st.title('NEXUS — AI Internal Audit')
-st.caption('PROJECT 07 · LLM soạn bản nháp · Python kiểm tra dữ liệu · Con người review và quyết định')
+page = shell()
 if 'notice' in st.session_state:
     st.success(st.session_state.pop('notice'))
 
-pages = ['Vai trò & cấu hình', 'Bảo vệ dữ liệu', 'Dữ liệu & Audit Run', 'RCM', 'Test Plan', 'Tests & Exceptions', 'Findings', 'Report', 'Evaluation']
-page = st.sidebar.radio('Quy trình kiểm toán', pages)
 run_list = api('/audit-runs')
 run_ids = [x['run_id'] for x in run_list]
 labels = {x['run_id']: x['audit_name'] + ' · ' + x['run_id'][:8] for x in run_list}
@@ -97,7 +95,10 @@ if rid:
 st.sidebar.caption('Demo dùng chung dữ liệu, chưa xác thực người duyệt. Chỉ dùng dữ liệu giả lập.')
 st.sidebar.button('Làm mới dữ liệu', on_click=lambda: None)
 
-if page == 'Vai trò & cấu hình':
+if page == 'Trang chủ':
+    home(len(run_list))
+
+elif page == 'Vai trò & cấu hình':
     st.subheader('AI hỗ trợ ở đâu, con người cần làm gì?')
     st.dataframe(pd.DataFrame([
         ['Viết code', 'Hỗ trợ thiết kế, tạo code và gợi ý sửa lỗi', 'Đọc diff, kiểm chứng nghiệp vụ, test và duyệt PR'],
@@ -115,8 +116,7 @@ if page == 'Vai trò & cấu hình':
     st.caption('Chỉ kiểm tra cấu hình; chưa chứng minh kết nối hoặc chất lượng model. API key không hiển thị trên giao diện.')
     if st.button('Kiểm tra key và danh sách model', key='gemini_check'):
         try:
-            with st.spinner('Đang đọc metadata model từ Google…'):
-                checked = mutate('/llm/check')
+            checked = mutate('/llm/check')
             st.success('Google chấp nhận truy cập danh sách model. Chưa kiểm chứng việc tạo nội dung.')
             if not checked['configured_model_listed']:
                 st.warning('Model đang cấu hình chưa có trong danh sách trả về. Chọn model hỗ trợ generateContent từ danh sách dưới và cập nhật Secrets.')
@@ -151,7 +151,8 @@ elif page == 'Bảo vệ dữ liệu':
         job = st.session_state.get('private_job')
         if not job or job['fingerprint'] != fingerprint:
             try:
-                protected = protect_file(raw, file.name)
+                with loading('Đang mã hóa file…'):
+                    protected = protect_file(raw, file.name)
                 job = {'fingerprint': fingerprint, 'protected': protected}
                 st.session_state['private_job'] = job
                 st.session_state.pop('private_reviewed', None)
@@ -184,7 +185,8 @@ elif page == 'Bảo vệ dữ liệu':
                 else:
                     try:
                         edited = plan.to_dict('records')
-                        reviewed = pseudonymize(frame, edited, scope, reviewer, protected['file_id'], source_bytes=raw, source_name=file.name)
+                        with loading('Đang bảo vệ dữ liệu và tạo bảng đối chiếu…'):
+                            reviewed = pseudonymize(frame, edited, scope, reviewer, protected['file_id'], source_bytes=raw, source_name=file.name)
                         reviewed['source_fingerprint'] = fingerprint
                         st.session_state['privacy_default_scope'] = scope.strip()
                         st.session_state['private_reviewed'] = reviewed

@@ -1,3 +1,6 @@
+NEXUS UI 1.8 — DARK / LIGHT
+Đọc HUONG_DAN_GIAO_DIEN_V1_8.md để cập nhật giao diện.
+
 PROJECT 07 — GEMINI / STREAMLIT
 
 Read README.md first.
