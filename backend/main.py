@@ -15,7 +15,7 @@ async def lifespan(app: FastAPI):
     init_db()
     yield
 
-app = FastAPI(title='Project 07 — AI Internal Audit Platform', version='1.7.0-AUDITOR-EXPORT', lifespan=lifespan,
+app = FastAPI(title='Project 07 — AI Internal Audit Platform', version='2.0.0-REACT', lifespan=lifespan,
  description='Policy → RCM → plan → deterministic tests → reviewed findings → reviewed draft report. Four Gemini API LLM tasks; mandatory human gates.')
 
 def envelope(request, data=None, status='success', errors=None, run_id=None, versions=None):
@@ -149,3 +149,7 @@ async def complete_lifespan(app):
         setup_workflow()
         yield
 app.router.lifespan_context = complete_lifespan
+
+# React privacy adapter; decryption remains available only through the local CLI.
+from privacy_web import router as privacy_web_router
+app.include_router(privacy_web_router)

@@ -1,0 +1,10 @@
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+**/private_vault
+**/*.sqlite*
+**/*.db
+**/.env
+**/secrets.toml
+.git
+frontend/dist

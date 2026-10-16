@@ -1,16 +1,4 @@
-HUONG DAN UPLOAD GITHUB
-
-1. Extract All ZIP into a new folder.
-2. Open that folder: streamlit_app.py and requirements.txt must be directly visible.
-3. GitHub repository root > Add file > Upload files.
-4. Select ALL extracted files AND folders, drag into the upload page, preserve folder structure.
-5. Commit changes. Do NOT upload the ZIP itself.
-6. Verify backend/models/db.py, backend/services/workflow.py and demo/loans_60.csv can be opened on GitHub.
-7. Streamlit: branch main, main file streamlit_app.py, Python 3.12. Reboot if needed.
-
-The root requirements.txt is complete and does not reference another requirements file.
-Keep .streamlit/config.toml and .github/workflows/ci.yml if uploading configuration folders.
-Secrets must be configured on Streamlit, never uploaded to GitHub.
-See README.md for model and baseline approval configuration.
-
-GEMINI VERSION: use GEMINI_API_KEY, PROJECT07_GEMINI_MODEL and PROJECT07_GEMINI_TIMEOUT. No Ollama variables needed.
+NEXUS REACT 2.0
+Upload nội dung thư mục gói mã nguồn lên GitHub, không upload riêng ZIP.
+Đọc HUONG_DAN_REACT_V2.md. Bản React dùng Docker/FastAPI, không dùng Streamlit Community Cloud.
+Gói có frontend/dist đã build để chạy ngay trên Windows bằng START_REACT.bat.

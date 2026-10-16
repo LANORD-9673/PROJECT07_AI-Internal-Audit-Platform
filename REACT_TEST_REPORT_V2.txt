@@ -1,0 +1,8 @@
+NEXUS React 2.0
+PASS: Vite production build.
+PASS: 104 backend tests (98 existing + 6 privacy API cases).
+PASS: Chromium browser checks at desktop 1440px and mobile 390px: home rendering, dark/light switching, theme persistence across reload, mobile width/navigation, real local encrypted upload, reviewed privacy export, no JS page errors.
+Visual review: dark/light homepage, mobile homepage and privacy page.
+UI content uses synthetic demonstration data; no live Gemini call during these checks.
+Not verified: Docker build on hosting provider, actual Render deployment, Windows batch on user's computer, production authorization, every device/browser, LLM semantic quality.
+Existing privacy and business scope restrictions still apply.
